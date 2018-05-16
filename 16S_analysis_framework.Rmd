@@ -77,14 +77,8 @@ library("microbiome")
 packageVersion("microbiome")
 library("ggpubr")
 packageVersion("ggpubr")
-library("randomForest")
-packageVersion("randomForest")
 library("data.table")
 packageVersion("data.table")
-library("cowplot")
-packageVersion("cowplot")
-library("DESeq2")
-packageVersion("DESeq2")
 
 ```
 ##Set global ggplot2 theme and options.
