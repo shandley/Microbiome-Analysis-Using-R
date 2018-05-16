@@ -1,0 +1,1117 @@
+---
+title: "16S WNV Antibiotics Analysis - Differential Abundance"
+author: "Scott A. Handley and Barry Hykes Jr."
+date: '`r format(Sys.Date(), "%B %d, %Y")`'
+output: html_document
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.width=8,
+                      fig.height=6,
+                      fig.path="./figures/",
+                      dev='png',
+                      warning=FALSE,
+                      message=FALSE)
+```
+##Load libraries
+
+```{r initiate-environment}
+library("tidyverse")
+packageVersion("tidyverse")
+library("phyloseq")
+packageVersion("phyloseq")
+library("RColorBrewer")
+packageVersion("RColorBrewer")
+library("vegan")
+packageVersion("vegan")
+library("gridExtra")
+packageVersion("gridExtra")
+library("knitr")
+packageVersion("knitr")
+library("DESeq2")
+packageVersion("DeSeq2")
+library("plotly")
+packageVersion("plotly")
+library("microbiome")
+packageVersion("microbiome")
+library("ggpubr")
+packageVersion("ggpubr")
+library("data.table")
+packageVersion("data.table")
+library("mgcv")
+packageVersion("mgcv")
+library("pheatmap")
+packageVersion("pheatmap")
+
+```
+
+```{r global-theme-settings, include=FALSE}
+# Set global theming
+theme_set(theme_bw(base_size = 10,
+                   base_family = "Helvetica"))
+
+```
+##Read in data
+
+```{r inititate-data}
+# Load Phyloseq Object
+ps1 <- readRDS("./Results/ps1.RDS")
+ps1
+
+# Perform a few sanity checks
+sample_variables(ps1) # Display variables from the mapping file
+ntaxa(ps1) # Total number of taxa in the entire data
+rank_names(ps1) # Taxonomic ranks
+get_taxa_unique(ps1, "Phylum") # Unique phyulm names in the file
+
+```
+## DeSeq2 Data Preparation
+
+```{r prep-and-subsetting, include=FALSE}
+# Time series should be set as a factor per DeSeq2 recommendations
+class(sample_data(ps1)$Day)
+sample_data(ps1)$Day <- factor(sample_data(ps1)$Day)
+class(sample_data(ps1)$Day)
+sample_data(ps1)$Day
+
+# Vehicle
+ps1.vehicle <- subset_samples(ps1, Treatment == "Vehicle")
+any(taxa_sums(ps1.vehicle) == 0) # In this case it is TRUE, so remove the zero's
+ps1.vehicle <- prune_taxa(taxa_sums(ps1.vehicle) > 0, ps1.vehicle)
+any(taxa_sums(ps1.vehicle) == 0) # It should now be false
+sample_data(ps1.vehicle)$Treatment
+
+# Amp
+ps1.amp <- subset_samples(ps1, Treatment == "Amp")
+any(taxa_sums(ps1.amp) == 0) # In this case it is TRUE, so remove the zero's
+ps1.amp <- prune_taxa(taxa_sums(ps1.amp) > 0, ps1.amp)
+any(taxa_sums(ps1.amp) == 0) # It should now be false
+sample_data(ps1.amp)$Treatment
+
+# Metro
+ps1.metro <- subset_samples(ps1, Treatment == "Metro")
+any(taxa_sums(ps1.metro) == 0) # In this case it is TRUE, so remove the zero's
+ps1.metro <- prune_taxa(taxa_sums(ps1.metro) > 0, ps1.metro)
+any(taxa_sums(ps1.metro) == 0) # It should now be false
+sample_data(ps1.metro)$Treatment
+
+# Amp Metro
+ps1.ampmetro <- subset_samples(ps1, Treatment == "Amp + Metro")
+any(taxa_sums(ps1.ampmetro) == 0) # In this case it is TRUE, so remove the zero's
+ps1.ampmetro <- prune_taxa(taxa_sums(ps1.ampmetro) > 0, ps1.ampmetro)
+any(taxa_sums(ps1.ampmetro) == 0) # It should now be false
+sample_data(ps1.ampmetro)$Treatment
+
+```
+
+```{r geometric-means-function}
+# This is required for data sets with lots of zeros
+gm_mean = function(x, na.rm=TRUE){
+  exp(sum(log(x[x > 0]), na.rm=na.rm) / length(x))
+}
+
+```
+
+##Differential abundance testing
+
+The analysis below identifies taxa which are, at one or more time points after time 0 for a categorical variable (i.e. survival) specific effect at a determined alpha level (p = 0.05 for stringency, 0.10 for exploration).
+
+##**LRT: VEHICLE ~ SurvivalStatus** 
+
+```{r differential-abundance-testing-vehicle-LRT}
+# Test for taxa which at one or more time points after time 0 showed a survival-specific effect
+# Convert phyloseq object to DeSeq2 table
+ds.vehicle.LRT <- phyloseq_to_deseq2(ps1.vehicle, ~SurvivalStatus + Day + SurvivalStatus:Day)
+
+# Calculate geometric means prior to estimate size factors
+geoMeans.ds.vehicle.LRT <- apply(counts(ds.vehicle.LRT), 1, gm_mean)
+ds.vehicle.LRT <- estimateSizeFactors(ds.vehicle.LRT, geoMeans = geoMeans.ds.vehicle.LRT)
+
+# Run DeSeq2
+dds.vehicle.LRT <- DESeq(ds.vehicle.LRT, test="LRT", reduced = ~SurvivalStatus + Day)
+
+# Tabulate results
+res.dds.vehicle.LRT = results(dds.vehicle.LRT)
+res.dds.vehicle.LRT$symbol <- mcols(dds.vehicle.LRT)$symbol
+head(res.dds.vehicle.LRT[order(res.dds.vehicle.LRT$padj), ], 4)
+summary(res.dds.vehicle.LRT)
+write.table(res.dds.vehicle.LRT, file = "Results/deseq_vehicle_survival_LRT.txt", sep = "\t")
+
+# Plot taxa with lowest p-value
+fiss.vehicle.LRT <- plotCounts(dds.vehicle.LRT, which.min(res.dds.vehicle.LRT$padj), 
+                   intgroup = c("Day","SurvivalStatus"), returnData = TRUE)
+ggplot(fiss.vehicle.LRT,
+  aes(x = as.numeric(Day), y = count, color = SurvivalStatus, group = SurvivalStatus)) + 
+  geom_point() + geom_smooth(se = FALSE, method = "loess") + scale_y_log10()
+
+```
+##**LRT: METRO ~ SurvivalStatus** 
+
+```{r differential-abundance-testing-metro-LRT}
+# Test for taxa which at one or more time points after time 0 showed a survival-specific effect
+# Convert phyloseq object to DeSeq2 table
+ds.metro.LRT <- phyloseq_to_deseq2(ps1.metro, ~SurvivalStatus + Day + SurvivalStatus:Day)
+
+# Calculate geometric means prior to estimate size factors
+geoMeans.ds.metro.LRT <- apply(counts(ds.metro.LRT), 1, gm_mean)
+ds.metro.LRT <- estimateSizeFactors(ds.metro.LRT, geoMeans = geoMeans.ds.metro.LRT)
+
+# Run DeSeq2
+dds.metro.LRT <- DESeq(ds.metro.LRT, test="LRT", reduced = ~SurvivalStatus + Day)
+
+# Tabulate results
+res.dds.metro.LRT = results(dds.metro.LRT)
+res.dds.metro.LRT$symbol <- mcols(dds.metro.LRT)$symbol
+head(res.dds.metro.LRT[order(res.dds.metro.LRT$padj), ], 4)
+summary(res.dds.metro.LRT)
+write.table(res.dds.metro.LRT, file = "Results/deseq_metro_survival_LRT.txt", sep = "\t")
+
+# Plot taxa with lowest p-value
+fiss.metro.LRT <- plotCounts(dds.metro.LRT, which.min(res.dds.metro.LRT$padj), 
+                   intgroup = c("Day","SurvivalStatus"), returnData = TRUE)
+ggplot(fiss.metro.LRT,
+  aes(x = as.numeric(Day), y = count, color = SurvivalStatus, group = SurvivalStatus)) + 
+  geom_point() + geom_smooth(se = FALSE, method = "loess") + scale_y_log10()
+
+```
+##**LRT: AMPICILLIN ~ SurvivalStatus** 
+
+```{r differential-abundance-testing-amp-LRT}
+# Test for taxa which at one or more time points after time 0 showed a survival-specific effect
+# Convert phyloseq object to DeSeq2 table
+ds.amp.LRT <- phyloseq_to_deseq2(ps1.amp, ~SurvivalStatus + Day + SurvivalStatus:Day)
+
+# Calculate geometric means prior to estimate size factors
+geoMeans.ds.amp.LRT <- apply(counts(ds.amp.LRT), 1, gm_mean)
+ds.amp.LRT <- estimateSizeFactors(ds.amp.LRT, geoMeans = geoMeans.ds.amp.LRT)
+
+# Run DeSeq2
+dds.amp.LRT <- DESeq(ds.amp.LRT, test="LRT", reduced = ~SurvivalStatus + Day)
+
+# Tabulate results
+res.dds.amp.LRT = results(dds.amp.LRT)
+res.dds.amp.LRT$symbol <- mcols(dds.amp.LRT)$symbol
+head(res.dds.amp.LRT[order(res.dds.amp.LRT$padj), ], 4)
+summary(res.dds.amp.LRT)
+write.table(res.dds.amp.LRT, file = "Results/deseq_amp_survival_LRT.txt", sep = "\t")
+
+# Plot taxa with lowest p-value
+fiss.amp.LRT <- plotCounts(dds.amp.LRT, which.min(res.dds.amp.LRT$padj), 
+                   intgroup = c("Day","SurvivalStatus"), returnData = TRUE)
+ggplot(fiss.amp.LRT,
+  aes(x = as.numeric(Day), y = count, color = SurvivalStatus, group = SurvivalStatus)) + 
+  geom_point() + geom_smooth(se = FALSE, method = "loess") + scale_y_log10()
+
+
+```
+##**LRT: AMP + METRO ~ SurvivalStatus** 
+
+```{r differential-abundance-testing-ampmetro-LRT}
+# Test for taxa which at one or more time points after time 0 showed a survival-specific effect
+# Convert phyloseq object to DeSeq2 table
+ds.ampmetro.LRT <- phyloseq_to_deseq2(ps1.ampmetro, ~SurvivalStatus + Day + SurvivalStatus:Day)
+
+# Calculate geometric means prior to estimate size factors
+geoMeans.ds.ampmetro.LRT <- apply(counts(ds.ampmetro.LRT), 1, gm_mean)
+ds.ampmetro.LRT <- estimateSizeFactors(ds.ampmetro.LRT, geoMeans = geoMeans.ds.ampmetro.LRT)
+
+# Run DeSeq2
+dds.ampmetro.LRT <- DESeq(ds.ampmetro.LRT, test="LRT", reduced = ~SurvivalStatus + Day)
+
+# Tabulate results
+res.dds.ampmetro.LRT = results(dds.ampmetro.LRT)
+res.dds.ampmetro.LRT$symbol <- mcols(dds.ampmetro.LRT)$symbol
+head(res.dds.ampmetro.LRT[order(res.dds.ampmetro.LRT$padj), ], 4)
+summary(res.dds.ampmetro.LRT)
+write.table(res.dds.ampmetro.LRT, file = "Results/deseq_ampmetro_survival_LRT.txt", sep = "\t")
+
+# Plot taxa with lowest p-value
+fiss.ampmetro.LRT <- plotCounts(dds.ampmetro.LRT, which.min(res.dds.ampmetro.LRT$padj), 
+                   intgroup = c("Day","SurvivalStatus"), returnData = TRUE)
+ggplot(fiss.ampmetro.LRT,
+  aes(x = as.numeric(Day), y = count, color = SurvivalStatus, group = SurvivalStatus)) + 
+  geom_point() + geom_smooth(se = FALSE, method = "loess") + scale_y_log10()
+
+```
+
+## Treatment vs. Treatment: LRT
+
+Possible Combinations
+
+# Comparisons to Vehicle
+1) Vehicle vs. Metro
+2) Vehicle vs. Amp
+3) Vehicle vs. Amp + Metro
+
+# Comparison to Metro
+4) Metro vs. Amp
+5) Metro vs. Amp + Metro
+
+# Final comparison
+6) Amp vs. Amp + Metro
+
+##**1) LRT: VEHICLE ~ METRO**
+```{r differential-abundance-testing-vehicle-vs-metro-LRT}
+# Subset infected Vehicle and Metro samples for the full treatment period
+sample_data(ps1)$Treatment
+ps1.vehicle_metro <- ps1 %>%
+  subset_samples(
+    Treatment != "Amp + Metro" &
+    Treatment != "Amp"
+  )
+nsamples(ps1.vehicle_metro)
+sample_data(ps1.vehicle_metro)$Treatment
+
+# Test for taxa which at one or more time points after time 0 showed a treatment-specific effect
+# Convert phyloseq object to DeSeq2 table
+ds.vehicle_metro.LRT <- phyloseq_to_deseq2(ps1.vehicle_metro, ~Treatment + Day + Treatment:Day)
+
+# Calculate geometric means prior to estimate size factors
+geoMeans.ds.vehicle_metro.LRT <- apply(counts(ds.vehicle_metro.LRT), 1, gm_mean)
+ds.vehicle_metro.LRT <- estimateSizeFactors(ds.vehicle_metro.LRT, geoMeans = geoMeans.ds.vehicle_metro.LRT)
+
+# Run DeSeq2
+dds.vehicle_metro.LRT <- DESeq(ds.vehicle_metro.LRT, test="LRT", reduced = ~Treatment + Day)
+
+# Tabulate results
+res.dds.vehicle_metro.LRT <- results(dds.vehicle_metro.LRT)
+res.dds.vehicle_metro.LRT$symbol <- mcols(dds.vehicle_metro.LRT)$symbol
+head(res.dds.vehicle_metro.LRT[order(res.dds.vehicle_metro.LRT$padj), ], 4)
+summary(res.dds.vehicle_metro.LRT)
+write.table(res.dds.vehicle_metro.LRT, file = "Results/deseq_vehicle_v_metro_LRT.txt", sep = "\t")
+
+# Plot taxa with lowest p-value
+fiss.vehicle_metro.LRT <- plotCounts(dds.vehicle_metro.LRT, which.min(res.dds.vehicle_metro.LRT$padj), 
+                   intgroup = c("Day","Treatment"), returnData = TRUE)
+ggplot(fiss.vehicle_metro.LRT,
+  aes(x = as.numeric(Day), y = count, color = Treatment, group = Treatment)) + 
+  geom_point() + geom_smooth(se = FALSE, method = "loess") + scale_y_log10()
+
+```
+
+##**2) LRT: VEHICLE ~ AMP**
+```{r differential-abundance-testing-vehicle-vs-amp-LRT}
+# Subset infected Vehicle and Metro samples for the full treatment period
+sample_data(ps1)$Treatment
+ps1.vehicle_amp <- ps1 %>%
+  subset_samples(
+    Treatment != "Amp + Metro" &
+    Treatment != "Metro"
+  )
+nsamples(ps1.vehicle_amp)
+sample_data(ps1.vehicle_amp)$Treatment
+
+# Test for taxa which at one or more time points after time 0 showed a treatment-specific effect
+# Convert phyloseq object to DeSeq2 table
+ds.vehicle_amp.LRT <- phyloseq_to_deseq2(ps1.vehicle_amp, ~Treatment + Day + Treatment:Day)
+
+# Calculate geometric means prior to estimate size factors
+geoMeans.ds.vehicle_amp.LRT <- apply(counts(ds.vehicle_amp.LRT), 1, gm_mean)
+ds.vehicle_amp.LRT <- estimateSizeFactors(ds.vehicle_amp.LRT, geoMeans = geoMeans.ds.vehicle_amp.LRT)
+
+# Run DeSeq2
+dds.vehicle_amp.LRT <- DESeq(ds.vehicle_amp.LRT, test="LRT", reduced = ~Treatment + Day)
+
+# Tabulate results
+res.dds.vehicle_amp.LRT <- results(dds.vehicle_amp.LRT)
+res.dds.vehicle_amp.LRT$symbol <- mcols(dds.vehicle_amp.LRT)$symbol
+head(res.dds.vehicle_amp.LRT[order(res.dds.vehicle_amp.LRT$padj), ], 4)
+summary(res.dds.vehicle_amp.LRT)
+write.table(res.dds.vehicle_amp.LRT, file = "Results/deseq_vehicle_v_amp_LRT.txt", sep = "\t")
+
+# Plot taxa with lowest p-value
+fiss.vehicle_amp.LRT <- plotCounts(dds.vehicle_amp.LRT, which.min(res.dds.vehicle_amp.LRT$padj), 
+                   intgroup = c("Day","Treatment"), returnData = TRUE)
+ggplot(fiss.vehicle_amp.LRT,
+  aes(x = as.numeric(Day), y = count, color = Treatment, group = Treatment)) + 
+  geom_point() + geom_smooth(se = FALSE, method = "loess") + scale_y_log10()
+
+```
+
+##**3) LRT: VEHICLE ~ AMP + METRO**
+```{r differential-abundance-testing-vehicle-vs-ampmetro-LRT}
+# Subset infected Vehicle and Amp+Metro samples for the full treatment period
+sample_data(ps1)$Treatment
+ps1.vehicle_ampmetro <- ps1 %>%
+  subset_samples(
+    Treatment != "Metro" &
+    Treatment != "Amp"
+  )
+nsamples(ps1.vehicle_ampmetro)
+sample_data(ps1.vehicle_ampmetro)$Treatment
+
+# Test for taxa which at one or more time points after time 0 showed a treatment-specific effect
+# Convert phyloseq object to DeSeq2 table
+ds.vehicle_ampmetro.LRT <- phyloseq_to_deseq2(ps1.vehicle_ampmetro, ~Treatment + Day + Treatment:Day)
+
+# Calculate geometric means prior to estimate size factors
+geoMeans.ds.vehicle_ampmetro.LRT <- apply(counts(ds.vehicle_ampmetro.LRT), 1, gm_mean)
+ds.vehicle_ampmetro.LRT <- estimateSizeFactors(ds.vehicle_ampmetro.LRT, geoMeans = geoMeans.ds.vehicle_ampmetro.LRT)
+
+# Run DeSeq2
+dds.vehicle_ampmetro.LRT <- DESeq(ds.vehicle_ampmetro.LRT, test="LRT", reduced = ~Treatment + Day)
+
+# Tabulate results
+res.dds.vehicle_ampmetro.LRT <- results(dds.vehicle_ampmetro.LRT)
+res.dds.vehicle_ampmetro.LRT$symbol <- mcols(dds.vehicle_ampmetro.LRT)$symbol
+head(res.dds.vehicle_ampmetro.LRT[order(res.dds.vehicle_ampmetro.LRT$padj), ], 4)
+summary(res.dds.vehicle_ampmetro.LRT)
+write.table(res.dds.vehicle_ampmetro.LRT, file = "Results/deseq_vehicle_v_ampmetro_LRT.txt", sep = "\t")
+
+# Plot taxa with lowest p-value
+fiss.vehicle_ampmetro.LRT <- plotCounts(dds.vehicle_ampmetro.LRT, which.min(res.dds.vehicle_ampmetro.LRT$padj), 
+                   intgroup = c("Day","Treatment"), returnData = TRUE)
+ggplot(fiss.vehicle_ampmetro.LRT,
+  aes(x = as.numeric(Day), y = count, color = Treatment, group = Treatment)) + 
+  geom_point() + geom_smooth(se = FALSE, method = "loess") + scale_y_log10()
+
+```
+
+##**4) LRT: METRO ~ AMP**
+```{r differential-abundance-testing-metro-vs-amp-LRT}
+# Subset infected Vehicle and Metro samples for the full treatment period
+sample_data(ps1)$Treatment
+ps1.metro_amp <- ps1 %>%
+  subset_samples(
+    Treatment != "Amp + Metro" &
+    Treatment != "Vehicle"
+  )
+nsamples(ps1.metro_amp)
+sample_data(ps1.metro_amp)$Treatment
+
+# Test for taxa which at one or more time points after time 0 showed a treatment-specific effect
+# Convert phyloseq object to DeSeq2 table
+ds.metro_amp.LRT <- phyloseq_to_deseq2(ps1.metro_amp, ~Treatment + Day + Treatment:Day)
+
+# Calculate geometric means prior to estimate size factors
+geoMeans.ds.metro_amp.LRT <- apply(counts(ds.metro_amp.LRT), 1, gm_mean)
+ds.metro_amp.LRT <- estimateSizeFactors(ds.metro_amp.LRT, geoMeans = geoMeans.ds.metro_amp.LRT)
+
+# Run DeSeq2
+dds.metro_amp.LRT <- DESeq(ds.metro_amp.LRT, test="LRT", reduced = ~Treatment + Day)
+
+# Tabulate results
+res.dds.metro_amp.LRT <- results(dds.metro_amp.LRT)
+res.dds.metro_amp.LRT$symbol <- mcols(dds.metro_amp.LRT)$symbol
+head(res.dds.metro_amp.LRT[order(res.dds.metro_amp.LRT$padj), ], 4)
+summary(res.dds.metro_amp.LRT)
+write.table(res.dds.metro_amp.LRT, file = "Results/deseq_metro_v_amp_LRT.txt", sep = "\t")
+
+# Plot taxa with lowest p-value
+fiss.metro_amp.LRT <- plotCounts(dds.metro_amp.LRT, which.min(res.dds.metro_amp.LRT$padj), 
+                   intgroup = c("Day","Treatment"), returnData = TRUE)
+ggplot(fiss.metro_amp.LRT,
+  aes(x = as.numeric(Day), y = count, color = Treatment, group = Treatment)) + 
+  geom_point() + geom_smooth(se = FALSE, method = "loess") + scale_y_log10()
+
+```
+
+##**5) LRT: METRO ~ AMP + METRO**
+```{r differential-abundance-testing-metro-vs-ampmetro-LRT}
+# Subset infected Metro and Amp+Metro samples for the full treatment period
+sample_data(ps1)$Treatment
+ps1.metro_ampmetro <- ps1 %>%
+  subset_samples(
+    Treatment != "Vehicle" &
+    Treatment != "Amp"
+  )
+nsamples(ps1.metro_ampmetro)
+sample_data(ps1.metro_ampmetro)$Treatment
+
+# Test for taxa which at one or more time points after time 0 showed a treatment-specific effect
+# Convert phyloseq object to DeSeq2 table
+ds.metro_ampmetro.LRT <- phyloseq_to_deseq2(ps1.metro_ampmetro, ~Treatment + Day + Treatment:Day)
+
+# Calculate geometric means prior to estimate size factors
+geoMeans.ds.metro_ampmetro.LRT <- apply(counts(ds.metro_ampmetro.LRT), 1, gm_mean)
+ds.metro_ampmetro.LRT <- estimateSizeFactors(ds.metro_ampmetro.LRT, geoMeans = geoMeans.ds.metro_ampmetro.LRT)
+
+# Run DeSeq2
+dds.metro_ampmetro.LRT <- DESeq(ds.metro_ampmetro.LRT, test="LRT", reduced = ~Treatment + Day)
+
+# Tabulate results
+res.dds.metro_ampmetro.LRT <- results(dds.metro_ampmetro.LRT)
+res.dds.metro_ampmetro.LRT$symbol <- mcols(dds.metro_ampmetro.LRT)$symbol
+head(res.dds.metro_ampmetro.LRT[order(res.dds.metro_ampmetro.LRT$padj), ], 4)
+summary(res.dds.metro_ampmetro.LRT)
+write.table(res.dds.metro_ampmetro.LRT, file = "Results/deseq_metro_v_ampmetro_LRT.txt", sep = "\t")
+
+# Plot taxa with lowest p-value
+fiss.metro_ampmetro.LRT <- plotCounts(dds.metro_ampmetro.LRT, which.min(res.dds.metro_ampmetro.LRT$padj), 
+                   intgroup = c("Day","Treatment"), returnData = TRUE)
+ggplot(fiss.metro_ampmetro.LRT,
+  aes(x = as.numeric(Day), y = count, color = Treatment, group = Treatment)) + 
+  geom_point() + geom_smooth(se = FALSE, method = "loess") + scale_y_log10()
+
+```
+
+##**6) LRT: AMP ~ AMP + METRO**
+```{r differential-abundance-testing-amp-vs-ampmetro-LRT}
+# Subset infected Amp and Amp+Metro samples for the full treatment period
+sample_data(ps1)$Treatment
+ps1.amp_ampmetro <- ps1 %>%
+  subset_samples(
+    Treatment != "Vehicle" &
+    Treatment != "Metro"
+  )
+nsamples(ps1.amp_ampmetro)
+sample_data(ps1.amp_ampmetro)$Treatment
+
+# Test for taxa which at one or more time points after time 0 showed a treatment-specific effect
+# Convert phyloseq object to DeSeq2 table
+ds.amp_ampmetro.LRT <- phyloseq_to_deseq2(ps1.amp_ampmetro, ~Treatment + Day + Treatment:Day)
+
+# Calculate geometric means prior to estimate size factors
+geoMeans.ds.amp_ampmetro.LRT <- apply(counts(ds.amp_ampmetro.LRT), 1, gm_mean)
+ds.amp_ampmetro.LRT <- estimateSizeFactors(ds.amp_ampmetro.LRT, geoMeans = geoMeans.ds.amp_ampmetro.LRT)
+
+# Run DeSeq2
+dds.amp_ampmetro.LRT <- DESeq(ds.amp_ampmetro.LRT, test="LRT", reduced = ~Treatment + Day)
+
+# Tabulate results
+res.dds.amp_ampmetro.LRT <- results(dds.amp_ampmetro.LRT)
+res.dds.amp_ampmetro.LRT$symbol <- mcols(dds.amp_ampmetro.LRT)$symbol
+head(res.dds.amp_ampmetro.LRT[order(res.dds.amp_ampmetro.LRT$padj), ], 4)
+summary(res.dds.amp_ampmetro.LRT)
+write.table(res.dds.amp_ampmetro.LRT, file = "Results/deseq_amp_v_ampmetro_LRT.txt", sep = "\t")
+
+# Plot taxa with lowest p-value
+fiss.amp_ampmetro.LRT <- plotCounts(dds.amp_ampmetro.LRT, which.min(res.dds.amp_ampmetro.LRT$padj), 
+                   intgroup = c("Day","Treatment"), returnData = TRUE)
+ggplot(fiss.amp_ampmetro.LRT,
+  aes(x = as.numeric(Day), y = count, color = Treatment, group = Treatment)) + 
+  geom_point() + geom_smooth(se = FALSE, method = "loess") + scale_y_log10()
+
+```
+
+```{r ground-truth-plots-prep}
+##Ground truth plots
+replace_counts = function(physeq, dds) {
+
+  dds_counts = counts(dds, normalized = TRUE)
+  if (!identical(taxa_names(physeq), rownames(dds_counts))) {
+    stop("OTU ids don't match")
+  }
+  otu_table(physeq) = otu_table(dds_counts, taxa_are_rows = TRUE)
+  return(physeq)
+
+}
+
+# Make deseq ready object
+ds.all <- phyloseq_to_deseq2(ps1, ~Treatment)
+geoMeans.all <- apply(counts(ds.all), 1, gm_mean)
+ds.all <- estimateSizeFactors(ds.all, geoMeans = geoMeans.all)
+dds.all <- DESeq(ds.all, test="Wald", betaPrior = TRUE)
+rlog.all <- replace_counts(ps1, dds.all)
+rlog.all <- psmelt(rlog.all)
+
+# Need to change Day to numeric
+class(rlog.all$Day)
+rlog.all$Day <- as.numeric(as.character(rlog.all$Day))
+class(rlog.all$Day)
+
+```
+
+```{r diff-abund-tables}
+# Vehicle vs. Metro
+nrow(res.dds.vehicle_metro.LRT)
+df1 <- as.data.frame(res.dds.vehicle_metro.LRT[ which(res.dds.vehicle_metro.LRT$padj < 0.05), ])
+nrow(df1)
+df1 <- as.data.frame(df1[ which(df1$baseMean > 100), ])
+nrow(df1)
+df1 <- rownames_to_column(df1, var = "ASV")
+df1$Comparison <- "vehicle.metro"
+write.table(df1, file = "./Results/df1.txt", sep = "\t")
+
+# Vehicle vs. Amp
+nrow(res.dds.vehicle_amp.LRT)
+df2 <- as.data.frame(res.dds.vehicle_amp.LRT[ which(res.dds.vehicle_amp.LRT$padj < 0.05), ])
+nrow(df2)
+df2 <- as.data.frame(df2[ which(df2$baseMean > 100), ])
+nrow(df2)
+df2 <- rownames_to_column(df2, var = "ASV")
+df2$Comparison <- "vehicle.amp"
+write.table(df2, file = "./Results/df2.txt", sep = "\t")
+
+# Vehicle vs. Amp + Metro
+nrow(res.dds.vehicle_ampmetro.LRT)
+df3 <- as.data.frame(res.dds.vehicle_ampmetro.LRT[ which(res.dds.vehicle_ampmetro.LRT$padj < 0.05), ])
+nrow(df3)
+df3 <- as.data.frame(df3[ which(df3$baseMean > 100), ])
+nrow(df3)
+df3 <- rownames_to_column(df3, var = "ASV")
+df3$Comparison <- "vehicle.ampmetro"
+write.table(df3, file = "./Results/df3.txt", sep = "\t")
+
+# Metro vs. Amp
+nrow(res.dds.metro_amp.LRT)
+df4 <- as.data.frame(res.dds.metro_amp.LRT[ which(res.dds.metro_amp.LRT$padj < 0.05), ])
+nrow(df4)
+df4 <- as.data.frame(df4[ which(df4$baseMean > 100), ])
+nrow(df4)
+df4 <- rownames_to_column(df4, var = "ASV")
+df4$Comparison <- "metro.amp"
+write.table(df4, file = "./Results/df4.txt", sep = "\t")
+
+# Metro vs. Amp + Metro
+nrow(res.dds.metro_ampmetro.LRT)
+df5 <- as.data.frame(res.dds.metro_ampmetro.LRT[ which(res.dds.metro_ampmetro.LRT$padj < 0.05), ])
+nrow(df5)
+df5 <- as.data.frame(df5[ which(df5$baseMean > 100), ])
+nrow(df5)
+df5 <- rownames_to_column(df5, var = "ASV")
+df5$Comparison <- "metro.ampmetro"
+write.table(df5, file = "./Results/df5.txt", sep = "\t")
+
+# Amp vs. Amp + Metro
+nrow(res.dds.amp_ampmetro.LRT)
+df6 <- as.data.frame(res.dds.amp_ampmetro.LRT[ which(res.dds.amp_ampmetro.LRT$padj < 0.05), ])
+nrow(df6)
+df6 <- as.data.frame(df6[ which(df6$baseMean > 100), ])
+nrow(df6)
+df6 <- rownames_to_column(df6, var = "ASV")
+df6$Comparison <- "amp.ampmetro"
+write.table(df6, file = "./Results/df6.txt", sep = "\t")
+
+df.all <- rbind(df1, df2, df3, df4, df5, df6)
+nrow(df.all)
+write.table(df.all, file = "./Results/df_all.txt", sep = "\t")
+
+dfs <- list(df1, df2, df3, df4, df5, df6)
+joined_dfs <- join_all(dfs, type = "full", by = "ASV")
+nrow(joined_dfs)
+write.table(joined_dfs, file = "./Results/df_unique.txt", sep = "\t")
+
+```
+## Subset and plot taxa that were differentially abundant in any of the 6 treatment ~ treatment comparisons.
+
+```{r select-differntially-abundant-taxa}
+# Subset deseq2 ID'd sequence
+seq.1.all <- subset(rlog.all, OTU == "GCGAGCGTTATCCGGATTCATTGGGTTTAAAGGGTGCGCAGGCGGAGCGTCAAGCCGGCGGTAAAATCGTGGGGCCCAACCCCATCCCGCCGTCGGAACTGGCGCCCTTGAGTGGCCGAGAGGTAGGCGGAATGCGTGGTGTAGCGGTGAAATGCATAGATATCACGCAGAACGCCGATTGCGAAGGCAGCCTACTGGCGGCCCACTGACGCTCAGGCACGAAAGCGTGGGGATCAAACA")
+
+seq.2.all <- subset(rlog.all, OTU == "TCAAGCGTTATCCGGATTTATTGGGTTTAAAGGGTGCGTAGGCGGTCGGATAAGTTAGAGGTGAAATCCCGAGGCTCAACTTCGGAATTGCCTCTGATACTGTTCGGCTAGAGAGTAGTTGCGGTAGGCGGAATGTATGGTGTAGCGGTGAAATGCTTAGAGATCATACAGAACACCGATTGCGAAGGCAGCTTACCAAGCTACTTCTGACGTTGAGGCACGAAAGCGTGGGGAGCAAAC")
+
+seq.3.all <- subset(rlog.all, OTU == "GCGAGCGTTATCCGGATTTATTGGGTTTAAAGGGTGCGCAGGCGGGCTGTCAAGTCAGCGGTAAAATTGAGAGGCTCAACCTCTTCGAGCCGTTGAAACTGGCGGTCTTGAGTGAGCGAGAAGTACGCGGAATGCGTGGTGTAGCGGTGAAATGCATAGATATCACGCAGAACTCCGATTGCGAAGGCAGCGTACCGGCGCTCAACTGACGCTCATGCACGAAAGCGTGGGGATCGAACA")
+
+seq.4.all <- subset(rlog.all, OTU == "TCAAGCGTTGTTCGGAATCACTGGGCGTAAAGCGTGCGTAGGCTGTTTCGTAAGTCGTGTGTGAAAGGCGCGGGCTCAACCCGCGGACGGCACATGATACTGCGAGACTAGAGTAATGGAGGGGGAACCGGAATTCTCGGTGTAGCAGTGAAATGCGTAGATATCGAGAGGAACACTCGTGGCGAAGGCGGGTTCCTGGACATTAACTGACGCTGAGGCACGAAGGCCAGGGGAGCGAAA")
+
+seq.5.all <- subset(rlog.all, OTU == "GCAAGCGTTATCCGGATTTACTGGGTGTAAAGGGAGCGTAGACGGCAGCGCAAGTCTGGAGTGAAATCCCATGGCTTAACCATGGAACTGCTTTGGAAACTGTGCAGCTGGAGTGCAGGAGAGGTAAGCGGAATTCCTAGTGTAGCGGTGAAATGCGTAGATATTAGGAGGAACACCAGTGGCGAAGGCGGCTTACTGGACTGTAACTGACGTTGAGGCTCGAAAGCGTGGGGAGCAAAC")
+
+seq.6.all <- subset(rlog.all, OTU == "GCAAGCGTTATCCGGAATTATTGGGCGTAAAGAGCGCGCAGGTGGTTAATTAAGTCTGATGTGAAAGCCCACGGCTTAACCGTGGAGGGTCATTGGAAACTGGTTGACTTGAGTGCAGAAGAGGGAAGTGGAATTCCATGTGTAGCGGTGAAATGCGTAGAGATATGGAGGAACACCAGTGGCGAAGGCGGCTTCCTGGTCTGCAACTGACACTGAGGCGCGAAAGCGTGGGGAGCAAAC")
+
+seq.7.all <- subset(rlog.all, OTU == "GCAAGCGTTGTCCGGATTTACTGGGTGTAAAGGGCGTGCAGCCGGAGAGACAAGTCAGATGTGAAATCCACGGGCTCAACCCGTGAACTGCATTTGAAACTGTTTCCCTTGAGTGTCGGAGAGGTAATCGGAATTCCTTGTGTAGCGGTGAAATGCGTAGATATAAGGAAGAACACCAGTGGCGAAGGCGGATTACTGGACGATAACTGACGGTGAGGCGCGAAAGCGTGGGGAGCAAAC")
+
+seq.8.all <- subset(rlog.all, OTU == "GCGAGCGTTAATCGGAATTACTGGGCGTAAAGGGTGCGCAGGCGGTTGAGTAAGACAGATGTGAAATCCCCGAGCTTAACTCGGGAATGGCATATGTGACTGCTCGACTAGAGTGTGTCAGAGGGAGGTGGAATTCCACGTGTAGCAGTGAAATGCGTAGATATGTGGAAGAACACCGATGGCGAAGGCAGCCTCCTGGGACATAACTGACGCTCAGGCACGAAAGCGTGGGGAGCAAAC")
+
+seq.9.all <- subset(rlog.all, OTU == "GCGAGCGTTGTCCGGATTTACTGGGCGTAAAGGGAGCGTAGGCGGACTTTTAAGTGAGATGTGAAATACTCGGGCTCAACTTGAGTGCTGCATTTCAAACTGGAAGTCTAGAGTGCAGGAGAGGAGAATGGAATTCCTAGTGTAGCGGTGAAATGCGTAGAGATTAGGAAGAACACCAGTGGCGAAGGCGATTCTCTGGACTGTAACTGACGCTGAGGCTCGAAAGCGTGGGGAGCAAAC")
+
+seq.10.all <- subset(rlog.all, OTU == "GCAAGCGTTATCCGGAATTATTGGGCGTAAAGAGGGAGCAGGCGGCAGCAAAGGTCTGTGGTGAAAGACTGAAGCTTAACTTCAGTAAGCCATAGAAACCGGGCAGCTAGAGTGCAGGAGAGGATCGTGGAATTCCATGTGTAGCGGTGAAATGCGTAGATATATGGAGGAACACCAGTGGCGAAGGCGACGATCTGGCCTGCAACTGACGCTCAGTCCCGAAAGCGTGGGGAGCAAATA")
+
+seq.11.all <- subset(rlog.all, OTU == "GCGAGCGTTATCCGGATTTATTGGGTTTAAAGGGTGCGTAGGCGGTCCGTTAAGTCAGCGGTAAAATTGCGGGGCTCAACCCCGTCGAGCCGTTGAAACTGGCAGACTTGAGTTGGCGAGAAGTACGCGGAATGCGCGGTGTAGCGGTGAAATGCATAGATATCGCGCAGAACTCCGATTGCGAAGGCAGCGTACCGGCGCCAGACTGACGCTGAGGCACGAAAGCGTGGGGATCGAACA")
+
+seq.12.all <- subset(rlog.all, OTU == "GCGAGCGTTATCCGGATTTATTGGGTTTAAAGGGTGCGCAGGCGGGATGCCAAGTCAGCGGTCAAATTTCGGGGCTCAACCCCGACCTGCCGTTGAAACTGGTGTCCTAGAGTGGGCGAGAAGTATGCGGAATGCGTGGTGTAGCGGTGAAATGCATAGATATCACGCAGAACTCCGATTGCGAAGGCAGCATACCGGCGCCCAACTGACGCTCATGCACGAAAGCGTGGGTATCGAACA")
+
+seq.13.all <- subset(rlog.all, OTU == "GCGAGCGTTATCCGGATTTATTGGGTTTAAAGGGTGCGTAGGCGGACTGTCAAGTCAGCGGTAAAATTGAGAGGCTCAACCTCTTCCCGCCGTTGAAACTGGTGGTCTTGAGTGGATGAGAAGTACGCGGAATGCGTGGTGTAGCGGTGAAATGCATAGATATCACGCAGAACTCCGATTGCGAAGGCAGCGTACCGGCATCCAACTGACGCTGAGGCACGAAAGCGTGGGGATCAAACA")
+
+seq.14.all <- subset(rlog.all, OTU == "GCGAGCGTTATCCGGATTTATTGGGTTTAAAGGGTGCGTAGGCGGTCCGTTAAGTCAGCGGTAAAATTGCGGGGCTCAACCCCGTCGAGCCGTTGAAACTGGCAGACTTGAGTTGGCGAGAAGTACGCGGAATGCGCGGTGTAGCGGTGAAATGCATAGATATCGCGCAGAACTCCGATTGCGAAGGCAGCGTACCGGCGCCACACTGACGCTGAGGCACGAAAGCGTGGGGATCGAACA")
+
+seq.15.all <- subset(rlog.all, OTU == "GCGAGCGTTATCCGGATTTATTGGGTTTAAAGGGTGCGCAGGCGGACTCTCAAGTCAGCGGTCAAATCGCGGGGCTCAACCCCGTTCCGCCGTTGAAACTGGGAGCCTTGAGTGCGCGAGAAGTAGGCGGAATGCGTGGTGTAGCGGTGAAATGCATAGATATCACGCAGAACTCCGATTGCGAAGGCAGCCTACCGGCGCGCAACTGACGCTCATGCACGAAAGCGTGGGTATCGAACA")
+
+seq.16.all <- subset(rlog.all, OTU == "GCGAGCGTTATCCGGATTTATTGGGTTTAAAGGGTGCGTAGGCGGACAGTTAAGTCAGCGGTAAAATTGAGAGGCTCAACCTCTTCCCGCCGTTGAAACTGATTGTCTTGAGTGGGCGAGAAGTATGCGGAATGCGTGGTGTAGCGGTGAAATGCATAGATATCACGCAGAACTCCGATTGCGAAGGCAGCATACCGGCGCCCAACTGACGCTGAAGCACGAAAGCGTGGGTATCGAACA")
+
+seq.17.all <- subset(rlog.all, OTU == "GCAAGCGTTATCCGGATTTACTGGGTGTAAAGGGAGCGTAGACGGCAATGCAAGCCAGATGTGAAAACCCGCAGCTCAACTGGGGGAGTGCATTTGGAACTGTGTAGCTGGAGTGCAGGAGAGGTAAGCGGAATTCCTGGTGTAGCGGTGAAATGCGTAGATATCAGGAGGAACACCAGTGGCGAAGGCGGCTTACTGGACTGTAACTGACGTTGAGGCTCGAAAGCGTGGGGAGCAAAC")
+
+seq.18.all <- subset(rlog.all, OTU == "GCAAGCGTTATCCGGATTTACTGGGTGTAAAGGGAGCGTAGACGGCAGGGCAAGTCTGATGTGAAAGGTCGGGGCCCAACCCCGGGACTGCATTGGAAACTGTCCGGCTGGAGTACAGGAGAGGTAAGTGGAATTCCTAGTGTAGCGGTGAAATGCGTAGATATTAGGAGGAACACCAGTGGCGAAGGCGGCTTACTGGACTGTAACTGACGTTGAGGCTCGAAAGCGTGGGGAGCAAAC")
+
+seq.19.all <- subset(rlog.all, OTU == "GCAAGCGTTGTCCGGATTTATTGGGCGTAAAGCGAGTGCAGGCGGTTCAATAAGTCTGATGTGAAAGCCTTCGGCTCAACCGGAGAATTGCATCAGAAACTGTTGAACTTGAGTGCAGAAGAGGAGAGTGGAACTCCATGTGTAGCGGTGGAATGCGTAGATATATGGAAGAACACCAGTGGCGAAGGCGGCTCTCTGGTCTGCAACTGACGCTGAGGCTCGAAAGCATGGGTAGCGAAC")
+
+seq.20.all <- subset(rlog.all, OTU == "GCAAGCGTTATCCGGATTTACTGGGTGTAAAGGGAGCGTAGACGGCCAGACAAGTCTGAAGTGAAAATCCAGCGCTTAACGTTGGAAGTGCTTTGGAAACTGCCGGGCTAGAGTGCAGGAGGGGCAGGCGGAATTCCTAGTGTAGCGGTGAAATGCGTAGATATTAGGAGGAACACCAGTGGCGAAGGCGGCCTGCTGGACTGCAACTGACGTTGAGGCTCGAAGGCGTGGGGAGCAAAC")
+
+seq.21.all <- subset(rlog.all, OTU == "CCGAGCGTTGTCCGGATTTATTGGGCGTAAAGCGAGCGCAGGCGGTTTGATAAGTCTGAAGTTAAAGGCTGTGGCTCAACCATAGTTCGCTTTGGAAACTGTCAAACTTGAGTGCAGAAGGGGAGAGTGGAATTCCATGTGTAGCGGTGAAATGCGTAGATATATGGAGGAACACCGGTGGCGAAAGCGGCTCTCTGGTCTGTAACTGACGCTGAGGCTCGAAAGCGTGGGGAGCGAACA")
+
+seq.22.all <- subset(rlog.all, OTU == "GCGAGCGTTATCCGGATTTATTGGGTTTAAAGGGTGCGCAGGCGGGCTGTCAAGTCAGCGGTAAAATTGAGAGGCTCAACCTCTTCGAGCCGTTGAAACTGGCGGTCTTGAGTGAGCGAGAAGTACGCGGAATGCGTGGTGTAGCGGTGAAATGCATAGATATCACGCAGAACTCCGATTGCGAAGGCAGCGTACCGGCGCTCAACTGACGCTCATGCACGAAAGCGTGGGTATCGAACA")
+
+seq.23.all <- subset(rlog.all, OTU == "GCAAGCGTTATCCGGAATTATTGGGCGTAAAGCGCGCGTAGGCGGTTTCTTAAGTCTGATGTGAAAGCCCACGGCTCAACCGTGGAGGGTCATTGGAAACTGGGAAACTTGAGTGCAGAAGAGGAAAGTGGAATTCCATGTGTAGCGGTGAAATGCGCAGAGATATGGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGTAACTGACGCTGATGTGCGAAAGCGTGGGGATCAAAC")
+
+seq.24.all <- subset(rlog.all, OTU == "GCAAGCGTTACTCGGAATTACTGGGCGTAAAGCGTGCGTAGGTGGTCGTTTAAGTCCGTTGTGAAAGCCCTGGGCTCAACCTGGGAACTGCAGTGGATACTGGGCGACTAGAATGTGGTAGAGGGTAGCGGAATTCCTGGTGTAGCAGTGAAATGCGTAGAGATCAGGAGGAACATCCATGGCGAAGGCAGCTACCTGGACCAACATTGACACTGAGGCACGAAAGCGTGGGGAGCAAAC")
+
+seq.25.all <- subset(rlog.all, OTU == "GCAAGCGTTATCCGGATTTACTGGGTGTAAAGGGAGCGTAGACGGTGATGCAAGTCAGAAGTGAAAGCCCGGGGCTCAACTCCGGGACTGCTTTTGAAACTGTGTAACTGGAGTGCAGGAGAGGTAAGCGGAATTCCTAGTGTAGCGGTGAAATGCGTAGATATTAGGAGGAACACCAGTGGCGAAGGCGGCTTACTGGACTGTAACTGACGTTGAGGCTCGAAAGCGTGGGGAGCAAAC")
+
+seq.26.all <- subset(rlog.all, OTU == "GCAAGCGTTATCCGGATTTACTGGGTGTAAAGGGAGCGTAGACGGTGCAGCAAGTCTGATGTGAAAGGTCGGGGCCCAACCCCGGGACTGCATTGGAAACTGTTGAACTGGAGTACAGGAGAGGTAAGCGGAATTCCTAGTGTAGCGGTGAAATGCGTAGATATTAGGAGGAACACCAGTGGCGAAGGCGGCTTACTGGACTGTAACTGACGTTGAGGCTCGAAAGCGTGGGGAGCAAAC")
+
+```
+
+```{r differntially-abundant-taxa-plots}
+# PLots
+p.seq.1.all <- ggplot(seq.1.all, aes(x = DaysTreatment, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10() +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Muribaculum intestinale 1")
+
+p.seq.2.all <- ggplot(seq.2.all, aes(x = DaysTreatment, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10() +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Alistipes onderdonkii")
+
+p.seq.3.all <- ggplot(seq.3.all, aes(x = DaysTreatment, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10() +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Muribaculum intestinale 3") 
+
+p.seq.4.all <- ggplot(seq.4.all, aes(x = DaysTreatment, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10() +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Akkermansia muciniphila") 
+
+p.seq.5.all <- ggplot(seq.5.all, aes(x = DaysTreatment, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10() +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Lachnoclostridium saccharolyticum") 
+
+p.seq.6.all <- ggplot(seq.6.all, aes(x = DaysTreatment, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10() +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Turicibacter sanguinis") 
+
+p.seq.7.all <- ggplot(seq.7.all, aes(x = DaysTreatment, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10() +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Oscillibacter ruminantium") 
+
+p.seq.8.all <- ggplot(seq.8.all, aes(x = DaysTreatment, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10() +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Parasutterella excrementihominis") 
+
+p.seq.9.all <- ggplot(seq.9.all, aes(x = DaysTreatment, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10() +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Clostridium saudiense") 
+
+p.seq.10.all <- ggplot(seq.10.all, aes(x = DaysTreatment, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10() +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Erysipelatoclostridium saccharogumia") 
+
+p.seq.11.all <- ggplot(seq.11.all, aes(x = DaysTreatment, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10() +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Muribaculum intestinale 11") 
+
+p.seq.12.all <- ggplot(seq.12.all, aes(x = DaysTreatment, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10() +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Muribaculum intestinale 12")
+
+p.seq.13.all <- ggplot(seq.13.all, aes(x = DaysTreatment, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10() +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Muribaculum intestinale 13")
+
+p.seq.14.all <- ggplot(seq.14.all, aes(x = DaysTreatment, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10() +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Muribaculum intestinale 14")
+
+p.seq.15.all <- ggplot(seq.15.all, aes(x = DaysTreatment, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10() +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Muribaculum intestinale 15")
+
+p.seq.16.all <- ggplot(seq.16.all, aes(x = DaysTreatment, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10() +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Muribaculum intestinale 16") 
+
+p.seq.17.all <- ggplot(seq.17.all, aes(x = DaysTreatment, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10() +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Eisenbergiella massiliensis")
+
+p.seq.18.all <- ggplot(seq.18.all, aes(x = DaysTreatment, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10() +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Robinsoniella peoriensis")
+
+p.seq.19.all <- ggplot(seq.19.all, aes(x = DaysTreatment, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10() +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Lactobacillus gasseri")
+
+p.seq.20.all <- ggplot(seq.20.all, aes(x = DaysTreatment, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10() +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Lachnoclostridium lavalense")
+
+p.seq.21.all <- ggplot(seq.21.all, aes(x = DaysTreatment, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10() +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Streptococcus thermophilus")
+
+p.seq.22.all <- ggplot(seq.22.all, aes(x = DaysTreatment, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10() +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Muribaculum intestinale 22")
+
+p.seq.23.all <- ggplot(seq.23.all, aes(x = DaysTreatment, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10() +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Staphylococcus saprophyticus")
+
+p.seq.24.all <- ggplot(seq.24.all, aes(x = DaysTreatment, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10() +
+  #theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Stenotrophomonas hibiscicola")
+
+p.seq.25.all <- ggplot(seq.25.all, aes(x = DaysTreatment, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10() +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Lachnoclostridium pacaense")
+
+p.seq.26.all <- ggplot(seq.26.all, aes(x = DaysTreatment, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10() +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Blautia caecimuris")
+
+```
+
+```{r differntially-abundant-taxa-grid, eval = FALSE}
+grid.arrange(p.seq.1.all, p.seq.2.all, p.seq.3.all, p.seq.4.all, p.seq.5.all, p.seq.6.all, p.seq.7.all, p.seq.8.all, p.seq.9.all, p.seq.10.all, p.seq.11.all, p.seq.12.all, p.seq.13.all, p.seq.14.all, p.seq.15.all, p.seq.16.all, p.seq.17.all, p.seq.18.all, p.seq.19.all, p.seq.20.all, p.seq.21.all, p.seq.22.all, p.seq.23.all, p.seq.24.all, p.seq.25.all, p.seq.26.all, nrow = 5)
+
+```
+
+```{r grid-for-manuscript}
+p.seq.2.all <- ggplot(seq.2.all, aes(x = Day, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10(labels = function(x) format(x, scientific = TRUE)) +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Alistipes onderdonkii") +
+  theme(plot.title = element_text(face = "bold")) +
+  theme(plot.title = element_text(size = 10)) +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.title.y = element_blank()) +
+  #theme(axis.text.x = element_blank()) +
+  scale_x_continuous(breaks = c(0, 3, 7, 13, 16, 18, 20))
+
+p.seq.18.all <- ggplot(seq.18.all, aes(x = Day, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10(labels = function(x) format(x, scientific = TRUE)) +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Robinsoniella peoriensis") +
+  theme(plot.title = element_text(face = "bold")) +
+  theme(plot.title = element_text(size = 10)) +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.title.y = element_blank()) +
+  theme(axis.text.x = element_blank()) +
+  scale_x_continuous(breaks = c(0, 3, 7, 13, 16, 18, 20))
+
+p.seq.19.all <- ggplot(seq.19.all, aes(x = Day, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10(labels = function(x) format(x, scientific = TRUE)) +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Lactobacillus gasseri") +
+  theme(plot.title = element_text(face = "bold")) +
+  theme(plot.title = element_text(size = 10)) +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.title.y = element_blank()) +
+  theme(axis.text.x = element_blank()) +
+  scale_x_continuous(breaks = c(0, 3, 7, 13, 16, 18, 20))
+
+p.seq.6.all <- ggplot(seq.6.all, aes(x = Day, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10(labels = function(x) format(x, scientific = TRUE)) +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Turicibacter sanguinis") +
+  theme(plot.title = element_text(face = "bold")) +
+theme(plot.title = element_text(size = 10)) +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.title.y = element_blank()) +
+  theme(axis.text.x = element_blank()) +
+  scale_x_continuous(breaks = c(0, 3, 7, 13, 16, 18, 20))
+
+p.seq.8.all <- ggplot(seq.8.all, aes(x = Day, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10(labels = function(x) format(x, scientific = TRUE)) +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Parasutterella excrementihominis") +
+  theme(plot.title = element_text(face = "bold")) +
+  theme(plot.title = element_text(size = 10)) +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.title.y = element_blank()) +
+  theme(axis.text.x = element_blank()) +
+  scale_x_continuous(breaks = c(0, 3, 7, 13, 16, 18, 20))
+
+p.seq.7.all <- ggplot(seq.7.all, aes(x = Day, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10(labels = function(x) format(x, scientific = TRUE)) +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Oscillibacter ruminantium") +
+  theme(plot.title = element_text(face = "bold")) +
+  theme(plot.title = element_text(size = 10)) +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.title.y = element_blank()) +
+  theme(axis.text.x = element_blank()) +
+  scale_x_continuous(breaks = c(0, 3, 7, 13, 16, 18, 20))
+
+p.seq.4.all <- ggplot(seq.4.all, aes(x = Day, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10(labels = function(x) format(x, scientific = TRUE)) +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Akkermansia muciniphila") +
+  theme(plot.title = element_text(face = "bold")) +
+  theme(plot.title = element_text(size = 10)) +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.title.y = element_blank()) +
+  theme(axis.text.x = element_blank()) +
+  scale_x_continuous(breaks = c(0, 3, 7, 13, 16, 18, 20))
+
+p.seq.9.all <- ggplot(seq.9.all, aes(x = Day, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10(labels = function(x) format(x, scientific = TRUE)) +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Clostridium saudiense") +
+  theme(plot.title = element_text(face = "bold")) +
+  theme(plot.title = element_text(size = 10)) +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.title.y = element_blank()) +
+  #theme(axis.text.x = element_blank()) +
+  scale_x_continuous(breaks = c(0, 3, 7, 13, 16, 18, 20))
+
+p.seq.10.all <- ggplot(seq.10.all, aes(x = Day, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10(labels = function(x) format(x, scientific = TRUE)) +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Erysipelatoclostridium saccharogumia") +
+  theme(plot.title = element_text(face = "bold")) +
+  theme(plot.title = element_text(size = 10)) +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.title.y = element_blank()) +
+  #theme(axis.text.x = element_blank()) +
+  scale_x_continuous(breaks = c(0, 3, 7, 13, 16, 18, 20))
+
+p.seq.5.all <- ggplot(seq.5.all, aes(x = Day, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(data = subset(seq.5.all, Treatment == "Amp" | Treatment == "Vehicle" | Treatment == "Amp + Metro"), se = FALSE) +
+  scale_y_log10(labels = function(x) format(x, scientific = TRUE)) +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Lachnoclostridium saccharolyticum") +
+  theme(plot.title = element_text(face = "bold")) +
+  theme(plot.title = element_text(size = 10)) +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.title.y = element_blank()) +
+  theme(axis.text.x = element_blank()) +
+  scale_x_continuous(breaks = c(0, 3, 7, 13, 16, 18, 20))
+
+p.seq.11.all <- ggplot(seq.11.all, aes(x = Day, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10(labels = function(x) format(x, scientific = TRUE)) +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Muribaculum intestinale") + #1 1
+  theme(plot.title = element_text(face = "bold")) +
+  theme(plot.title = element_text(size = 10)) +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.title.y = element_blank()) +
+  scale_x_continuous(breaks = c(0, 3, 7, 13, 16, 18, 20))
+
+p.seq.20.all <- ggplot(seq.20.all, aes(x = Day, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10(labels = function(x) format(x, scientific = TRUE)) +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Lachnoclostridium lavalense") +
+  theme(plot.title = element_text(face = "bold")) +
+  theme(plot.title = element_text(size = 10)) +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.title.y = element_blank()) +
+  scale_x_continuous(breaks = c(0, 3, 7, 13, 16, 18, 20))
+
+p.seq.17.all <- ggplot(seq.17.all, aes(x = Day, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10(labels = function(x) format(x, scientific = TRUE)) +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Eisenbergiella massiliensis") +
+  theme(plot.title = element_text(face = "bold")) +
+  theme(plot.title = element_text(size = 10)) +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.title.y = element_blank()) +
+  scale_x_continuous(breaks = c(0, 3, 7, 13, 16, 18, 20))
+
+p.seq.24.all <- ggplot(seq.24.all, aes(x = Day, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(se = FALSE) +
+  scale_y_log10(labels = function(x) format(x, scientific = TRUE)) +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Stenotrophomonas hibiscicola") +
+  theme(plot.title = element_text(face = "bold")) +
+  theme(plot.title = element_text(size = 10)) +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.title.y = element_blank()) +
+  scale_x_continuous(breaks = c(0, 3, 7, 13, 16, 18, 20))
+
+p.seq.21.all <- ggplot(seq.21.all, aes(x = Day, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(data = subset(seq.5.all, Treatment == "Amp" | Treatment == "Amp + Metro"), se = FALSE) +
+  scale_y_log10(labels = function(x) format(x, scientific = TRUE)) +
+  theme(legend.position = "NULL") +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  ggtitle("Streptococcus thermophilus") +
+  theme(plot.title = element_text(face = "bold")) +
+  theme(plot.title = element_text(size = 10)) +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.title.y = element_blank()) +
+  scale_x_continuous(breaks = c(0, 3, 7, 13, 16, 18, 20))
+
+```
+
+```{r}
+#grid.arrange(p.seq.2.all, p.seq.18.all, p.seq.19.all, p.seq.6.all, p.seq.8.all, p.seq.7.all, p.seq.4.all, p.seq.9.all, p.seq.10.all, p.seq.5.all, p.seq.11.all, p.seq.20.all, p.seq.17.all, p.seq.21.all, p.seq.24.all, nrow = 3)
+
+grid.arrange(p.seq.2.all, p.seq.9.all, p.seq.10.all, p.seq.11.all, p.seq.20.all, p.seq.17.all, p.seq.21.all, p.seq.24.all, nrow = 2)
+
+```
+
+```{r}
+levels(seq.21.all$Treatment)
+seq.21.all$Treatment <- factor(seq.21.all$Treatment, levels = c("Vehicle", "Amp", "Metro", "Amp + Metro"))
+levels(seq.21.all$Treatment)
+
+ggplot(seq.21.all, aes(x = Day, y = Abundance, color = Treatment, group = Treatment)) +
+  geom_point(size = 1, alpha = 0.6) +
+  stat_smooth(data = subset(seq.5.all, Treatment == "Amp" | Treatment == "Amp + Metro"), se = FALSE) +
+  scale_y_log10(labels = function(x) format(x, scientific = TRUE)) +
+  theme(legend.position = "bottom") +
+  scale_color_manual(values = c("black", "green", "chocolate", "purple"), labels = c("Vehicle", "A", "M", "AM")) +
+  ggtitle("Streptococcus thermophilus") +
+  theme(plot.title = element_text(face = "bold")) +
+  theme(plot.title = element_text(size = 10)) +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.title.y = element_blank()) +
+  scale_x_continuous(breaks = c(0, 3, 7, 13, 16, 18, 20)) +
+  theme(legend.title = element_blank())
+  
+
+```
+
+```{r differntially-abundant-summary-plot}
+df.annotated <- read.table("./Results/df_all_annotated.txt")
+levels(df.annotated$Comparison)
+df.annotated$Comparison <- factor(df.annotated$Comparison, levels = c("vehicle.metro", "vehicle.amp", "vehicle.ampmetro", "metro.amp", "metro.ampmetro", "amp.ampmetro"))
+levels(df.annotated$Comparison)
+df.annotated$Comparison <- factor(df.annotated$Comparison, labels = c("Vehicle vs. Metro", "Vehicle vs. Amp", "Vehicle vs. Amp + Metro", "Metro + Amp", "Metro + Amp + Metro", "Amp + Amp + Metro"))
+levels(df.annotated$Comparison)
+
+# Plot
+ggplot(df.annotated, aes(x=Comparison, y=log2FoldChange, color = Phylum)) +
+ geom_point(size = 4, alpha = 0.7) +
+ geom_hline(yintercept = 0)
+		
+```
+## R session info
+
+```{r session-info}
+sessionInfo()
+```
+

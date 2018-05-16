@@ -1,0 +1,688 @@
+---
+title: "16S Analysis Framework"
+author: "Scott A. Handley"
+date: '`r format(Sys.Date(), "%B %d, %Y")`'
+output: html_document
+---
+
+#Background
+
+Generalized workflow for processing 16S rRNA gene amplicon data. Each R chunk represents a specific analysis type.
+
+The code chunks perform the following functions:
+
+1) Environment inititation
+2) Data loading
+
+
+2) Factor reordering and renaming (optional)
+3) Data assessment
+4) Taxon prevalence estimations and filtering
+5) Data transformation
+6) Subsetting (optional)
+7) Community composition plotting
+8) Alpha diversity analysis
+9) Beta diversity analysis
+10) Constrained Correspondence Analysis (optional)
+11) Differential abundance testing
+
+The data originate from a study on the bacterial microbiome of mice treated with or without antibiotics to test the affects of the microbiome on flavivirus infection (https://www.ncbi.nlm.nih.gov/pubmed/29590614). Sequence data was generated from extracted nucleic acid from stool samples collected from individually caged mice and amplified using primers specific for the V4 region using primers 515F/806R.
+
+The study followed flavivirus infection after the following treatments:
+
+1) Koolaid: Antibiotics are provided to the mice via their drinking water. As many of the antibiotics taste bad, koolaid is added as a sweetener. Therefore, the appropriate control is water spike with koolaid.
+2) Ampicillin (Amp): https://en.wikipedia.org/wiki/Ampicillin
+3) Metronidazole (Met): https://en.wikipedia.org/wiki/Metronidazole
+4) Ampicillin + Metronidazole (Amp+Metro)
+
+Treatments was supplied for 2 weeks prior to viral infection and maintained for 2 weeks post-infection. Primary outcome was mouse survival. Each antibiotic treatment group had two subgroups of mice that were either a) left uninfected as controls or b) infected with West Nile Virus via a subcutaneous footpad injection.
+
+##Data organization:
+
+There is no single way to organize your data, but it is good practice to develop a standard for file storage and naming. An well thought out organization structure will make coding your analysis easier, enable you to more easily return to your data after leaving it for a period of time and facilitate publication of your data.
+
+The organizational scheme for this workshop is as follow:
+
+General rules for file naming and organization:
+
+1) Special characters and spaces in file or directory names other than _ and - are evil
+2) Naming parity is useful. For example, if you have a data object called 16S_analysis.RDS, then it would be helpful to have the same prefix for associated files (e.g. 16S_mapping.txt, 16S_data.RmD, 16S_project.RProj)
+
+For the purposes of this Workshop we have arranged directories and files as follows:
+
+1) All files are in the base directory called /2018_ASM_Workshop/
+2) 
+
+
+##Data and environment initiation
+We will begin by customizing our global settings, activating packages and loading our data into R using the following steps:
+
+1) Set global knitr options
+2) Load libraries
+3) Set global ggplot2 theme and options
+4) Load data
+
+###Set global knitr options
+
+Knitr is a stanrardize library which "knits" together code chunks and converts them to specified format such as HTML or PDF. This is very useful for report generation. The way in which knitr handles chunk formatting and report generation can be specified in a code chunk. There are a number options you can use in this section [read about here](https://yihui.name/knitr/options/).
+
+```{r global_options, include=FALSE}
+# This code chunk will define output figure dimensions,
+# specified a path where knitted figures will reside after knitting
+# prevents display of warnings in the knitted report
+
+knitr::opts_chunk$set(fig.width=8,
+                      fig.height=6,
+                      fig.path="./figures/",
+                      dev='png',
+                      warning=FALSE,
+                      message=FALSE)
+```
+##Load libraries
+
+```{r initiate-environment}
+library("tidyverse"); packageVersion("tidyverse")
+#library("plyr")
+#packageVersion("plyr")
+library("phyloseq"); packageVersion("phyloseq")
+#library("RColorBrewer"); packageVersion("RColorBrewer")
+#library("vegan"); packageVersion("vegan")
+library("gridExtra"); packageVersion("gridExtra")
+library("knitr"); packageVersion("knitr")
+library("DESeq2"); packageVersion("DeSeq2")
+library("plotly"); packageVersion("plotly")
+#library("microbiome"); packageVersion("microbiome")
+#library("ggpubr"); packageVersion("ggpubr")
+library("data.table"); packageVersion("data.table")
+
+```
+##Set global ggplot2 theme and options.
+
+This sets the plotting aesthetics for every ggplot2 for the rest of the document. There are a tremendous number of ways to customize your ggplot2 settings using theme_set. It is best practice to do this at the beginning of the RMarkdown document so that these settings propogage to the entirety of the studies plots.
+
+```{r global-theme-settings, include=FALSE}
+# Set global theming
+# This theme set will change the ggplot2 defaults to use the b&w settings (removes the default gray background) and sets the devault font to 10pt Helvetica.
+theme_set(theme_bw(base_size = 10,
+                   base_family = "Arial"))
+
+
+```
+
+Of note, there are a number of ways to customize R code chunks. For the knitr and ggplot2 theme settings I have decided to set inlude=FLASE. This tells knitr to exclude the chunk from the final report. In this case, the chunk will still be evaluated as part of the RMarkdown document. If you wish to prevent the chunk from being executed you can set eval=FALSE.
+
+##Read in your data
+
+The output from a standard dada2 workflow should be an RDS file. In this case the file is called *ps0.rds* (ps is shorthand for PhyloSeq. The 0 indicates it is the 'base' version of the file. As it is modified this can be changed to ps1, ps2, etc.). You may have already merged your mapping file data (sample variables) with the rds file. However, you will likely add or modify this mapping file as you progress, so it is useful to initiate an import/merge of a mapping file at this stage.
+
+```{r initiate-data}
+# Read in an RDS file containing taxonomic and count information
+ps0 <- readRDS("./data/ps0.wnv_antibiotics.rdp.RDS")
+
+# Read in a mapping file containing sample variable information
+map <- import_qiime_sample_data("./data/mapping_wnv_antibiotics.txt")
+
+# Merge the RDS file with the mapping file
+ps0 <- merge_phyloseq(ps0, map)
+
+# Perform a few sanity checks
+sample_variables(ps0) # Display variables from the mapping file
+ntaxa(ps0) # Total number of taxa in the entire data
+rank_names(ps0) # Taxonomic ranks
+get_taxa_unique(ps0, "Phylum") # Unique phyulm names in the file
+
+```
+##Sample filtering
+
+EXPLANATION NEEDS TO BE ADDED HERE
+
+```{r sample-filtering}
+# Remove Day -14 cohoused data
+# These samples were collected and sequenced, but were obtained prior to mouse co-housing and thus not inlcuded in subsequent analysis
+levels(sample_data(ps0)$DaysTreatment)
+ps0 <- subset_samples(ps0, DaysTreatment != "D.14")
+levels(sample_data(ps0)$DaysTreatment)
+
+# A group of uninfected animals were collected as well, but not analyzed as part of this study
+levels(sample_data(ps0)$Virus)
+ps0 <- subset_samples(ps0, Virus == "WNV2000")
+levels(sample_data(ps0)$Virus)
+
+# Remove taxa no longer part of the count table due to sample removal
+summary(taxa_sums(ps0))
+ps0 <- prune_taxa(taxa_sums(ps0) > 0, ps0)
+summary(taxa_sums(ps0))
+
+```
+##Factor reordering and renaming (optional)
+
+The default sorting for ggplot2 is alphabetical. So if you want to make a box plot comparing Shannon diversity between wild-type and knockout mice, it will by default always place knockout on the left and wild-type on the right. However, you may wish to switch this so the knock-out is on the right and wild-type on the left.
+
+This can be done on a plot-by-plot basis, however, it is likely that you will want all of your plots to reflect this customization throughout the entire analysis, so it is useful to have an R chunk at the very beginning of your workflow to specify order and label names.
+
+In the example data, most of the analysis will be done comparing the sample variable "treatment" which is either KoolAid or Ampicillin in the mapping file. Due to default ordering, Ampicillin will always appear before Koolaid. We want the control displayed first (on the left of most plots). We also want to use the more formal "Vehicle" to indicate that a "vehicle control" was used. Koolaid is added to the water to encourage mice to drink the antibiotic laden water. This would be indicated in the methods of a manuscript, but the plots should be more formal and indicate that this was a vehicle control. The code chunk below provides examples for reordering and relabeling sample variable data.
+
+```{r factor-adjustments}
+# Reorder Treatments
+levels(sample_data(ps0)$Treatment)
+sample_data(ps0)$Treatment <- factor(sample_data(ps0)$Treatment, levels = c("Vehicle","Metro","Amp","AmpMetro"))
+levels(sample_data(ps0)$Treatment)
+
+# Relabel Treatments
+sample_data(ps0)$Treatment <- factor(sample_data(ps0)$Treatment, labels = c("Vehicle","Metro","Amp","Amp + Metro"))
+levels(sample_data(ps0)$Treatment)
+
+# Factor re-ordering, relabelling, etc.
+# Reorder Time points
+levels(sample_data(ps0)$DaysTreatment)
+sample_data(ps0)$DaysTreatment <- factor(sample_data(ps0)$DaysTreatment, levels = c("D0", "D3", "D7", "D13", "D16", "D18", "D20"))
+levels(sample_data(ps0)$DaysTreatment)
+
+```
+
+##ASV summary statistics
+
+Data assessment consists of 2 steps:
+
+1) Evaluate Resolved Sequence Variant (RSV, formerly referred to as an OTU) summary statistics
+2) Detect and remove outlier samples
+
+Begin by running the following R chunk to produce several summary plots and basic statistics about the RSV's and samples in your data.
+
+```{r data-assessment}
+# Create a new data frame of the sorted row sums, a column of sorted values from 1 to the total number of individuals/counts for each ASV and a categorical variable stating these are all ASVs.
+readsumsdf = data.frame(nreads = sort(taxa_sums(ps0), TRUE), 
+                        sorted = 1:ntaxa(ps0),
+                        type = "ASVs")
+
+# Add a column of sample sums (total number of individuals per sample)
+readsumsdf = rbind(readsumsdf,
+                   data.frame(nreads = sort(sample_sums(ps0), TRUE),
+                              sorted = 1:nsamples(ps0),
+                              type = "Samples"))
+
+# Make a data frame with a column for the read counts of each sample for histogram production
+sample_sum_df <- data.frame(sum = sample_sums(ps0))
+
+# Make plots
+# Generates a bar plot with # of reads (y-axis) for each taxa. Sorted from most to least abundant
+# Generates a second bar plot with # of reads (y-axis) per sample. Sorted from most to least
+p.reads = ggplot(readsumsdf, aes(x = sorted, y = nreads)) +
+  geom_bar(stat = "identity") +
+  ggtitle("ASV Assessment") +
+  scale_y_log10() +
+  facet_wrap(~type, scales = "free") +
+  ylab("# of Reads")
+
+# Histogram of the number of Samples (y-axis) at various read depths
+p.reads.hist <- ggplot(sample_sum_df, aes(x = sum)) + 
+  geom_histogram(color = "black", fill = "firebrick3", binwidth = 150) +
+  ggtitle("Distribution of sample sequencing depth") + 
+  xlab("Read counts") +
+  ylab("# of Samples")
+
+# Final plot, side-by-side
+grid.arrange(p.reads, p.reads.hist, ncol = 2)
+
+# Basic summary statistics
+summary(sample_sums(ps0))
+
+```
+The above data assessment is useful for getting an idea of 1) the overall taxonomic distribution of your reads (left plot). This will normally be a "long tail" with some taxa being highly abundant in the data tapering off to taxa with very few reads, 2) probably more valuable than the first plot is how many reads are in each sample (middle plot). Very low read count can be indicative of a failed reaction and 3) a histogram of the number of samples at various "bins" of read depth. Each of these plots will help give an understanding of how your data are structured across taxa and samples and will vary depending on the nature of your samples.
+
+Samples with unexpectedly low number of sequences can be safely removed. This is an intuitive process and should be instructed by your understanding of the samples in your study. For example, if you have 5 samples from stool samples, one would expect to obtain thousands, if not several thousands of RSVs. This may not be the case for other tissues, such as spinal fluid or tissue samples. Similarly, you would not expect thousands of RSV from samples obtained from antibiotic treated organisms. Following antibiotic treatment you may be left with dozens or hundreds of RSVs. So contextual awareness about the biology of your system should guide your decision to remove samples based on RSV number. The basic idea is to remove samples with "unexpected" numbers of RSV.
+
+Importantly, at each stage you should document and justify your decisions. If you are concerned that sample removal will alter the interpretation of your results, you should run your analysis on the full data and the data with the sample(s) removed to see how the decision affects your interpretation.
+
+The above plots provide overall summaries about the number of RSVs found in all of your samples. However, they are not very useful for identifying and removing specific samples. This can be done using the following R chunk.
+
+```{r sample-removal-identification}
+# Format a data table to combine sample summary data with sample variable data
+ss <- sample_sums(ps0)
+sd <- as.data.frame(sample_data(ps0))
+ss.df <- merge(sd, data.frame("ASVs" = ss), by ="row.names")
+
+# Plot the data by the treatment variable
+y = 1000 # Set a threshold for the minimum number of acceptable reads. Can start as a guess
+x = "DaysTreatment" # Set the x-axis variable you want to examine
+label = "Sample.ID" # This is the label you want to overlay on the points that are below threshold y. Should be something sample specific
+
+p.ss.boxplot <- ggplot(ss.df, aes_string(x, y = "ASVs")) + 
+  stat_boxplot(geom = "errorbar", position = position_dodge(width = 0.8)) +
+  geom_boxplot(outlier.colour="NA", position = position_dodge(width = 0.8), alpha = 0.2) +
+  scale_y_log10() +
+  facet_wrap(~Treatment) +
+  geom_hline(yintercept = y, lty = 2) + 
+  geom_point(position=position_jitterdodge(dodge.width = 0.8), aes_string(color = "SurvivalStatus"), size = 1.2) +
+  geom_text(data = ss.df, aes_string(x, y="ASVs", label=label), size=2) # This labels a subset that fall below threshold variable y and labels them with the label variable
+p.ss.boxplot
+
+write.table(ss.df, file = "./Results/asv_stats.txt", sep = "\t")
+
+```
+The example data does have a couple of samples with fewer than 1,000 ASVs. However, these come from samples obtained from antibiotic treated mice, so this fits our expectation. There are a 7 samples in the Amp + Metro treated mice at the later time points that seem to be performing differently (very low numbers of ASV) in comparison to the majority of samples. When questionable samples arise you should take note of them so if there are samples which behave oddly in downstream analysis you can recall this information and perhaps justify their removal. In this case lets remove them. 
+
+```{r sample-outlier-removal}
+# Outlier samples: c("D16.M5", "D16.M2", "D18.M3", "D18.M5", "D18.K1", "D20.M5", "D20.M2")
+nsamples(ps0)
+ps1 <- ps0 %>%
+  subset_samples(
+    Sample.ID != "D16.M5" &
+    Sample.ID != "D16.M2" &
+    Sample.ID != "D18.M3" &
+    Sample.ID != "D18.M5" &
+    Sample.ID != "D18.K1" &
+    Sample.ID != "D20.M5" &
+    Sample.ID != "D20.M2"
+)
+nsamples(ps1)
+
+```
+##Overall sample relationship to evaluate sample outliers
+
+Note that we created a new phyloseq object called ps1. This preserves all of the data in the original ps0 and creates a new data object with the offending sample(s) removed called ps1.
+
+Failure to detect and remove "bad" samples can make interpreting ordinations much more challenging as they typically project as "outliers" severely skewing the rest of the samples. These samples also increase variance and will impede your ability to identify differentially abundant taxa between groups. So sample outlier removal should be a serious and thoughtful part of every analysis in order to obtain optimal results.
+
+The next code chunk implements an MDS plot of Bray-Curtis dissimilarity. This is a simple projection of multivariant data and can be useful for identifying sample outliers similar to what we just did above. However, this takes into consideration the entire properties of the data set, and not just number of ASVs. If outliers are suspected based on this plot one should consider their removal.
+
+```{r outlier-sample-evaluation}
+# Outlier evaluation
+out.bray <- ordinate(ps1, method = "MDS", distance = "bray")
+p.MDS.outlier <- plot_ordination(ps1, out.bray, color = "Treatment", axes = c(1,2)) +
+  theme_bw() +
+  geom_point(size = 2) +
+  ggtitle("MDS of Bray Distances \nOutlier Evaluation") +
+  geom_text(aes(label = Well), size = 3, check_overlap = FALSE, vjust = -1)
+p.MDS.outlier
+
+```
+## Outlier sample removal
+
+...Discuss 96-well plate edge-well issues here...
+
+Sample removal decisions should be made thoughtufully and considering biological and technical context.
+
+##Taxon prevalence estimations and filtering
+
+Low abundant taxa typically do not contribute to ecological community evaluation or differential abundnace testing. There are of course caveats to this statement (i.e. low-abundance pathogen detction), but many analysis can benefit from the removal of uninformative (low prevelance) taxa. Removal of low prevelance taxa greatly assist in tests penalized with a false-discovery-rate (FDR) calculation. Similar to outlier sample removal, low prevelant taxa removal should be justified and documented. The following R chunk provides several evaluations and plots to assist with this decision.
+
+##Taxon cleaning 
+
+```{r taxon-cleaning}
+# Begin by removing sequences that were classified as either mitochondria or chlorplast
+ntaxa(ps1) # Check the number of taxa prior to removal
+ps1 <- ps1 %>%
+  subset_taxa(
+    Family  != "mitochondria" &
+    Class   != "Chloroplast"
+  )
+ntaxa(ps1) # Confirm that the taxa were removed
+
+```
+
+##Subsetting
+
+You will frequently find that you want to analyze a subset of your total data set. There are typically commands that will allow you to do this for each individual analysis, but similar to variable reordering it can sometime be more convenient to do this towards the beginning of your analysis. This should be done after removal of outlier samples and taxa. If you wish to create transformed versions of each subset you can either subset the transformed data you just generated, or alternatively retransform your subsetted data. The R chunk below is an example subsetting of the example data by treatment.
+
+Subsetting away samples can create a situation where taxa are present as empty rows. This is because not every sample has every taxa. These can be removed as shown in the R chunk below.
+
+Creating individual subsets like this can be particularly useful when assessing differential abundance using DeSeq2.
+
+```{r subsetting, include=FALSE}
+#Subsets
+# All samples
+ntaxa(ps1)
+ps1 <- prune_taxa(taxa_sums(ps1) > 0, ps1)
+ntaxa(ps1)
+
+# Vehicle
+ps1
+ps1.vehicle <- subset_samples(ps1, Treatment == "Vehicle")
+any(taxa_sums(ps1.vehicle) == 0) # In this case it is TRUE, so remove the zero's
+ps1.vehicle <- prune_taxa(taxa_sums(ps1.vehicle) > 0, ps1.vehicle)
+any(taxa_sums(ps1.vehicle) == 0) # It should now be false
+
+# Amp
+ps1
+ps1.amp <- subset_samples(ps1, Treatment == "Amp")
+any(taxa_sums(ps1.amp) == 0) # In this case it is TRUE, so remove the zero's
+ps1.amp <- prune_taxa(taxa_sums(ps1.amp) > 0, ps1.amp)
+any(taxa_sums(ps1.amp) == 0) # It should now be false
+
+# Metro
+ps1
+ps1.metro <- subset_samples(ps1, Treatment == "Metro")
+any(taxa_sums(ps1.metro) == 0) # In this case it is TRUE, so remove the zero's
+ps1.metro <- prune_taxa(taxa_sums(ps1.metro) > 0, ps1.metro)
+any(taxa_sums(ps1.metro) == 0) # It should now be false
+
+# Amp Metro
+ps1
+ps1.ampmetro <- subset_samples(ps1, Treatment == "Amp + Metro")
+any(taxa_sums(ps1.ampmetro) == 0) # In this case it is TRUE, so remove the zero's
+ps1.ampmetro <- prune_taxa(taxa_sums(ps1.ampmetro) > 0, ps1.ampmetro)
+any(taxa_sums(ps1.ampmetro) == 0) # It should now be false
+
+```
+
+##Community composition plotting
+
+```{r community-composition-plots}
+# Create a data table for ggploting
+ps1_phylum <- ps1 %>%
+  tax_glom(taxrank = "Phylum") %>%                     # agglomerate at phylum level
+  transform_sample_counts(function(x) {x/sum(x)} ) %>% # Transform to rel. abundance (or use ps0.ra)
+  psmelt() %>%                                         # Melt to long format for easy ggploting
+  filter(Abundance > 0.01)                             # Filter out low abundance taxa
+
+# Convert Sample No to a factor because R is weird sometime
+ps1_phylum$SampleNo <- as.factor(ps1_phylum$SampleNo)
+
+# Plot - Phylum
+p.ra.phylum <- ggplot(ps1_phylum, aes(x = SampleNo, y = Abundance, fill = Phylum)) + 
+  geom_bar(stat = "identity", width = 1) +
+  facet_wrap(Treatment~DaysTreatment, scales = "free_x", nrow = 4, ncol = 7) +
+  theme(axis.text.x = element_blank()) +
+  theme(axis.title.x = element_blank()) +
+  ggtitle("Abundant Phylum (> 1%)")
+p.ra.phylum
+
+# Note: This is a nice place to output tables of data that you may want to use for other analysis, or to include as supplemental data for publication
+# You can rerun the first bit of code in this chunk and change Phylum to Species for a table with all possible classifications
+write.table(ps1_phylum, file = "./Results/phylum_relab.txt", sep = "\t")
+
+ggplotly(p.ra.phylum)
+
+```
+
+```{r prevalence-assessment}
+# Prevelance estimation
+# Calculate feature prevelance across the data set
+prevdf <- apply(X = otu_table(ps1),MARGIN = ifelse(taxa_are_rows(ps1), yes = 1, no = 2),FUN = function(x){sum(x > 0)})
+
+# Add taxonomy and total read counts to prevdf
+prevdf <- data.frame(Prevalence = prevdf, TotalAbundance = taxa_sums(ps1), tax_table(ps1))
+
+# Create a table of Phylum, their mean abundances across all samples, and the number of samples they were detected in
+plyr::ddply(prevdf, "Phylum", function(df1){cbind(mean(df1$Prevalence),sum(df1$Prevalence))})
+
+#Prevalence plot
+prevdf1 <- subset(prevdf, Phylum %in% get_taxa_unique(ps0, "Phylum"))
+p.prevdf1 <- ggplot(prevdf1, aes(TotalAbundance, Prevalence / nsamples(ps1),color=Family)) +
+  geom_hline(yintercept = 0.05, alpha = 0.5, linetype = 2) +
+  geom_point(size = 3, alpha = 0.7) +
+  scale_x_log10() +
+  xlab("Total Abundance") + ylab("Prevalence [Frac. Samples]") +
+  facet_wrap(~Phylum) +
+  theme(legend.position="none") +
+  ggtitle("Phylum Prevelence in All Samples\nColored by Family")
+p.prevdf1
+
+```
+This code will produce a table and a plot of all of the Phyla present in your samples along with information about their prevelance (fraction of samples they are present in) and total abundance across all samples. 
+
+...ADD ADDITIONAL EXPLANATION AND STRATEGY HERE...
+
+Example on how to filter low prevelant taxa below. Not used for the origianl analysis though, need to consider to include or not and update example below.
+
+```{r prevelance-filtering-example, eval=FALSE, include=FALSE}
+# Remove specific taxa
+# Define a variable with taxa to remove
+filterPhyla = c("Fusobacteria")
+
+ps1 # Check the number of taxa prior to removal
+ps1.prev <- subset_taxa(ps2, !Phylum %in% filterPhyla) 
+ps1.prev # Confirm the taxa were removed
+
+# Removing taxa that fall below 5% prevelance
+# Define the prevalence threshold
+prevalenceThreshold = 0.05 * nsamples(ps1)
+prevalenceThreshold
+
+# Define which taxa fall within the prevalence threshold
+keepTaxa <- rownames(prevdf1)[(prevdf1$Prevalence >= prevalenceThreshold)]
+ps1 # Check the number of taxa prior to removal
+ps1.prev <- prune_taxa(keepTaxa, ps1)
+ps1.prev # Confirm the taxa were removed
+
+```
+##Data transformation
+
+Many analysis in community ecology and hypothesis testing benefit from data transformation. Many microbiome data sets do not fit to a normal distribution, but transforming them towards normality may enable more appropriate data for specific statistical tests. The choice of transformation is not straight forward. There is literature on how frequently used transfromations affect certain analysis, but every data set may require different considerations. Therefore, it is recommended that you examine the effects of several transformations on your data and explore how they alter your results and interpretation.
+
+The R chunk below implements several commonly used transformations in microbiome research and plots their results. Similar to outlier removal and prevalance filtering, your choice should be justified, tested and documented.
+
+```{r data-transform, include=FALSE}
+# Transform to Realative abundances
+ps1.ra <- transform_sample_counts(ps1, function(OTU) OTU/sum(OTU))
+
+# Transform to Proportional Abundance
+ps1.prop <- transform_sample_counts(ps1, function(x) min(sample_sums(ps1)) * x/sum(x))
+
+# Log transformation moves to a more normal distribution
+ps1.log <- transform_sample_counts(ps1, function(x) log(1 + x))
+
+# View how each function altered count data
+par(mfrow=c(1,4))
+plot(sort(sample_sums(ps1), TRUE), type = "o", main = "Native", ylab = "RSVs", xlab = "Samples")
+plot(sort(sample_sums(ps1.log), TRUE), type = "o", main = "log Transfromed", ylab = "RSVs", xlab = "Samples")
+plot(sort(sample_sums(ps1.ra), TRUE), type = "o", main = "Relative Abundance", ylab = "RSVs", xlab = "Samples")
+plot(sort(sample_sums(ps1.prop), TRUE), type = "o", main = "Proportional Abundance", ylab = "RSVs", xlab = "Samples")
+par(mfrow=c(1,4))
+
+# Histograms of the non-transformed data vs. the transformed data can address the shift to normality
+p.nolog <- qplot(rowSums(otu_table(ps1))) + ggtitle("Raw Counts") +
+  theme_bw() +
+  xlab("Row Sum") +
+  ylab("# of Samples")
+
+p.log <- qplot(log10(rowSums(otu_table(ps1)))) +
+  ggtitle("log10 transformed counts") +
+  theme_bw() +
+  xlab("Row Sum") +
+  ylab("# of Samples")
+
+grid.arrange(p.nolog, p.log, ncol = 2)
+
+```
+##Phyla level plots
+
+```{r phyla-level-plots-preparation}
+# agglomerate taxa
+glom <- tax_glom(ps1.ra, taxrank = 'Phylum')
+
+# create dataframe from phyloseq object
+dat <- as.tibble(psmelt(glom))
+
+# Reorder Phylum levels from most -> least abundant
+levels(dat$Phylum)
+dat$Phylum <- factor(dat$Phylum, levels = c("Bacteroidetes", "Firmicutes", "Proteobacteria", "Tenericutes", "Actinobacteria", "Verrucomicrobia"))
+levels(dat$Phylum)
+
+levels(dat$Treatment)
+dat$Treatment <- factor(dat$Treatment, levels = c("Vehicle", "Metro", "Amp", "Amp + Metro"))
+levels(dat$Treatment)
+
+# Reduced to most abundant phylum
+summary(dat$Phylum)
+dat.1 <- filter(dat, Phylum %in% c("Bacteroidetes", "Firmicutes", "Proteobacteria", "Tenericutes"))
+dat.1 <- droplevels(dat.1)
+summary(dat.1$Phylum)
+
+levels(dat.1$Treatment)
+dat.1$Treatment <- factor(dat.1$Treatment, levels = c("Vehicle", "Amp", "Metro", "Amp + Metro"))
+levels(dat.1$Treatment)
+
+```
+...these plots are hyper-customized due to specifications for publications. This code can be greatly simplified...
+
+```{r phyla-level-plotting}
+# Define color scheme
+my.cols <- brewer.pal(n = 8, "Dark2")
+my.cols[3] <- "#08519C"
+
+# Phyla plots with GAM smoother 
+p.gam.phylum <- ggplot(dat.1, aes(x = Day, y = Abundance, color = Phylum, group = Phylum)) +
+  stat_smooth(method = "gam", formula = y ~ s(x, bs = "cr", k = 7)) +
+  facet_grid(~Treatment) +
+  ylab("Relative Abundance") +
+  geom_point(size = 1.25, alpha = 0.4) +
+  theme(axis.text.x = element_text(size = 10)) +
+  theme(axis.text.y = element_text(size = 10)) +
+  theme(axis.title.y = element_text(size = 10)) +
+  theme(axis.title.x = element_blank()) +
+  theme(strip.text = element_text(size = 10)) +
+  scale_y_continuous(breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2)) +
+  scale_x_continuous(breaks = c(0, 3, 7, 13, 16, 18, 20)) +
+  scale_color_manual(values = my.cols) +
+  theme(strip.background = element_blank()) +
+  theme(strip.text.x = element_blank()) +
+  theme(axis.title.y = element_blank()) +
+  guides(color=guide_legend(override.aes=list(fill=NA))) +
+  theme(legend.title = element_blank())
+p.gam.phylum
+
+```
+##Alpha diversity summary information generation
+
+```{r add-sample-data}
+# Diversity
+diversity <- global(ps1)
+head(diversity)
+ps1.rich <- merge(sd, diversity, by ="row.names") # merge sd.1 by row names
+
+# Add divergence measurements
+ps1.rich$divergence <- divergence(ps1)
+
+```
+## Alpha diversity plotting
+
+```{r alpha-diverstiy-GAM-plots}
+ps1.rich.melt <- melt(ps1.rich, id.vars = c("Treatment", "Day", "DaysTreatment"), measure.vars = c("richness_0"))
+ps1.sd.melt <- melt(ps1.rich, id.vars = c("Treatment", "Day", "DaysTreatment"), measure.vars = c("diversities_shannon"))
+
+# Richness
+p.rich.gam.treat <- ggplot(ps1.rich.melt, aes(x = Day, y = value, color = Treatment, group = Treatment)) +
+  stat_smooth(method = "gam", formula = y ~ s(x, bs = "cr", k = 7)) +
+  ylab("Richness") +
+  geom_point(size = 1.25, alpha = 0.5) +
+  theme(axis.text.x = element_text(size = 10)) +
+  theme(axis.text.y = element_text(size = 10)) +
+  theme(axis.title.y = element_blank()) +
+  theme(axis.title.x = element_blank()) +
+  theme(strip.text = element_text(size = 10)) +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple")) +
+  theme(legend.position = "NULL") +
+  scale_y_continuous(limits = c(0,250), breaks = c(0,50, 100, 150, 200, 250)) +
+  scale_x_continuous(breaks = c(0,3,7,13,16,18,20))
+
+# Shannon diversity
+p.sd.gam.treat <- ggplot(ps1.sd.melt, aes(x = Day, y = value, color = Treatment, group = Treatment)) +
+  stat_smooth(method = "gam", formula = y ~ s(x, bs = "cr", k = 7)) +
+  ylab("Shannon Diversity") +
+  geom_point(size = 1.25, alpha = 0.5) +
+  theme(axis.text.x = element_text(size = 10)) +
+  theme(axis.text.y = element_text(size = 10)) +
+  theme(axis.title.y = element_blank()) +
+  theme(axis.title.x = element_blank()) +
+  theme(strip.text = element_text(size = 10)) +
+  scale_color_manual(values = c("black", "green", "chocolate", "purple"), labels = c("Vehicle", "A", "M", "AM")) +
+  guides(color=guide_legend(override.aes=list(fill=NA))) +
+  theme(legend.position = "right") +
+  theme(legend.title = element_blank()) +
+  scale_y_continuous(limits = c(0,5), breaks = c(0,1,2,3,4,5)) +
+  scale_x_continuous(breaks = c(0,3,7,13,16,18,20))
+  #theme(legend.title = element_blank())
+
+grid.arrange(p.rich.gam.treat, p.sd.gam.treat, ncol = 2)
+
+```
+## Ordination
+
+```{r ordination}
+#Ordination Analysis
+#Beta Diversity has same trend of timepoints with longtail and bimodal read counts having larger elipses
+ord.pcoa.bray <- ordinate(ps1, method = "PCoA", distance = "bray")
+ord.pcoa.uni <- ordinate(ps1, method = "PCoA", distance = "unifrac")
+ord.pcoa.wuni <- ordinate(ps1, method = "PCoA", distance = "wunifrac")
+
+```
+## Beta diversity ordination plots ~ SurvivalStatus
+
+```{r ordination-plots}
+## Ordination plots all samples
+# Bray
+p.pcoa.bray <- plot_ordination(ps1, ord.pcoa.bray, color = "SurvivalStatus", axes = c(1,2)) +
+  geom_point(size = 2) +
+  ggtitle("PCoA of UniFrac Distances") +
+  facet_grid(Treatment~DaysTreatment)
+  #stat_ellipse(type = "norm", geom = "polygon", alpha = 1/10, aes(fill = SurvivalStatus))
+p.pcoa.bray
+
+# Unifrac
+p.pcoa.uni <- plot_ordination(ps1, ord.pcoa.uni, color = "SurvivalStatus", axes = c(1,2)) +
+  geom_point(size = 2) +
+  ggtitle("PCoA of UniFrac Distances") +
+  facet_grid(Treatment~DaysTreatment)
+  #stat_ellipse(type = "norm", geom = "polygon", alpha = 1/10, aes(fill = SurvivalStatus))
+p.pcoa.uni
+
+# Weighted Unifrac
+p.pcoa.wuni <- plot_ordination(ps1, ord.pcoa.wuni, color = "SurvivalStatus", axes = c(1,2)) +
+  geom_point(size = 2) +
+  ggtitle("PCoA of wUniFrac Distances") +
+  facet_grid(Treatment~DaysTreatment) +
+  stat_ellipse(type = "norm", geom = "polygon", alpha = 1/10, aes(fill = SurvivalStatus))
+p.pcoa.wuni
+
+```
+
+```{r pcoa-plot}
+p.pcoa.uni.treat <- plot_ordination(ps1, ord.pcoa.uni, color = "Treatment", shape = "SurvivalStatus") +
+  geom_point(size = 3) +
+  # ggtitle("PCoA of UniFrac Distances") +
+  facet_grid(~DaysTreatment) +
+  scale_color_manual(values = c("black", "green", "chocolate", "purple"), labels = c("Vehicle", "A", "M", "AM")) +
+  theme(axis.title.y = element_blank()) +
+  theme(axis.title.x = element_blank()) +
+  theme(legend.position = "bottom") +
+  theme(legend.text = element_text(size = 10)) +
+  theme(legend.title = element_blank()) +
+  theme(strip.background = element_blank()) +
+  theme(strip.text.x = element_blank())
+p.pcoa.uni.treat
+
+```
+##Group significance testing with ADONIS
+
+```{r adonis-script}
+# Set a random seed so that exact results can be reproduced
+set.seed(10000)
+
+# Function to run adonis test on a physeq object and a variable from metadata 
+doadonis <- function(physeq, category) {
+  bdist <- phyloseq::distance(physeq, "unifrac")
+  col <- as(sample_data(physeq), "data.frame")[ ,category]
+  
+  # Adonis test
+  adonis.bdist <- adonis(bdist ~ col)
+  print("Adonis results:")
+  print(adonis.bdist)
+  
+  # Homogeneity of dispersion test
+  betatax = betadisper(bdist,col)
+  p = permutest(betatax)
+  print("Betadisper results:")
+  print(p$tab)
+}
+
+doadonis(ps1, "Treatment")
+
+```
+
+
+```{r session-info}
+# Dsiplay current R session information
+sessionInfo()
+```
