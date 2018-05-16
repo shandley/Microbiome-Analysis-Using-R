@@ -7,11 +7,14 @@ output: html_document
 
 #Background
 
-Generalized workflow for processing 16S rRNA gene amplicon data. Each R chunk represents a specific analysis type. Depending on the makeup of the data, such as sample names, variable types/names or data subsets some R chunks are optional or will need modification as needed.
+Generalized workflow for processing 16S rRNA gene amplicon data. Each R chunk represents a specific analysis type.
 
 The code chunks perform the following functions:
 
-1) Data and environment initiation
+1) Environment inititation
+2) Data loading
+
+
 2) Factor reordering and renaming (optional)
 3) Data assessment
 4) Taxon prevalence estimations and filtering
@@ -23,12 +26,35 @@ The code chunks perform the following functions:
 10) Constrained Correspondence Analysis (optional)
 11) Differential abundance testing
 
-The example data are dada2 amplicon sequence variants (ASV). The data originate from a study on the bacterial microbiome of mice treated with or without antibiotics. Sequence data was generated from extracted nucleic acid from stool samples collected from individually caged mice and amplified using primers specific for the V4 region using primers 515F/806R. One group of mice (n=30) were treated with ampicillin for 3 days, and the other a vehicle control (n=15).
+The data originate from a study on the bacterial microbiome of mice treated with or without antibiotics to test the affects of the microbiome on flavivirus infection (https://www.ncbi.nlm.nih.gov/pubmed/29590614). Sequence data was generated from extracted nucleic acid from stool samples collected from individually caged mice and amplified using primers specific for the V4 region using primers 515F/806R.
+
+The study followed flavivirus infection after the following treatments:
+
+1) Koolaid: Antibiotics are provided to the mice via their drinking water. As many of the antibiotics taste bad, koolaid is added as a sweetener. Therefore, the appropriate control is water spike with koolaid.
+2) Ampicillin (Amp): https://en.wikipedia.org/wiki/Ampicillin
+3) Metronidazole (Met): https://en.wikipedia.org/wiki/Metronidazole
+4) Ampicillin + Metronidazole (Amp+Metro)
+
+Treatments was supplied for 2 weeks prior to viral infection and maintained for 2 weeks post-infection. Primary outcome was mouse survival. Each antibiotic treatment group had two subgroups of mice that were either a) left uninfected as controls or b) infected with West Nile Virus via a subcutaneous footpad injection.
+
+##Data organization:
+
+There is no single way to organize your data, but it is good practice to develop a standard for file storage and naming. An well thought out organization structure will make coding your analysis easier, enable you to more easily return to your data after leaving it for a period of time and facilitate publication of your data.
+
+The organizational scheme for this workshop is as follow:
+
+General rules for file naming and organization:
+
+1) Special characters and spaces in file or directory names other than _ and - are evil
+2) Naming parity is useful. For example, if you have a data object called 16S_analysis.RDS, then it would be helpful to have the same prefix for associated files (e.g. 16S_mapping.txt, 16S_data.RmD, 16S_project.RProj)
+
+For the purposes of this Workshop we have arranged directories and files as follows:
+
+1) All files are in the base directory called /2018_ASM_Workshop/
+2) 
+
 
 ##Data and environment initiation
-
-##Include explanation about directory structure and data files HERE
-
 We will begin by customizing our global settings, activating packages and loading our data into R using the following steps:
 
 1) Set global knitr options
@@ -55,30 +81,19 @@ knitr::opts_chunk$set(fig.width=8,
 ##Load libraries
 
 ```{r initiate-environment}
-library("tidyverse")
-packageVersion("tidyverse")
-library("plyr")
-packageVersion("plyr")
-library("phyloseq")
-packageVersion("phyloseq")
-library("RColorBrewer")
-packageVersion("RColorBrewer")
-library("vegan")
-packageVersion("vegan")
-library("gridExtra")
-packageVersion("gridExtra")
-library("knitr")
-packageVersion("knitr")
-library("DESeq2")
-packageVersion("DeSeq2")
-library("plotly")
-packageVersion("plotly")
-library("microbiome")
-packageVersion("microbiome")
-library("ggpubr")
-packageVersion("ggpubr")
-library("data.table")
-packageVersion("data.table")
+library("tidyverse"); packageVersion("tidyverse")
+#library("plyr")
+#packageVersion("plyr")
+library("phyloseq"); packageVersion("phyloseq")
+#library("RColorBrewer"); packageVersion("RColorBrewer")
+#library("vegan"); packageVersion("vegan")
+library("gridExtra"); packageVersion("gridExtra")
+library("knitr"); packageVersion("knitr")
+library("DESeq2"); packageVersion("DeSeq2")
+library("plotly"); packageVersion("plotly")
+#library("microbiome"); packageVersion("microbiome")
+#library("ggpubr"); packageVersion("ggpubr")
+library("data.table"); packageVersion("data.table")
 
 ```
 ##Set global ggplot2 theme and options.
