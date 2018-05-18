@@ -1,5 +1,5 @@
 ---
-title: "16S Analysis Framework"
+title: "2018 ASM Using R to Analyze the Bacterial Microbiome Workshop"
 author: "Scott A. Handley"
 date: '`r format(Sys.Date(), "%B %d, %Y")`'
 output: html_document
