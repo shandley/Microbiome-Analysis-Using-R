@@ -11,7 +11,7 @@ Generalized workflow for processing 16S rRNA gene amplicon data. Each R chunk re
 
 The code chunks perform the following functions:
 
-1) Environment inititation
+1) Environment initiation
 2) Data loading
 3) Variable examination and modification
 4) Data assessment
@@ -43,7 +43,7 @@ The organizational scheme for this workshop is as follow:
 General rules for file naming and organization:
 
 1) Special characters and spaces in file or directory names other than _ and - are evil
-2) Naming parity is useful. For example, if you have a data object called 16S_analysis.RDS, then it would be helpful to have the same prefix for associated files (e.g. 16S_mapping.txt, 16S_data.RmD, 16S_project.RProj)
+2) Naming parity is useful. For example, if you have a data object called 16S_analysis.RDS, then it would be helpful to have the same prefix for associated files (e.g. 16S_mapping.txt, 16S_data.Rmd, 16S_project.RProj)
 
 For the purposes of this Workshop we have arranged directories and files as follows:
 
@@ -64,7 +64,7 @@ We will begin by customizing our global settings, activating packages and loadin
 
 ### Set global knitr options
 
-Knitr is a stanrardize library which "knits" together code chunks and converts them to specified format such as HTML or PDF. This is very useful for report generation. The way in which knitr handles chunk formatting and report generation can be specified in a code chunk. There are a number options you can use in this section [read about here](https://yihui.name/knitr/options/).
+Knitr is a standardize library which "knits" together code chunks and converts them to specified format such as HTML or PDF. This is very useful for report generation. The way in which knitr handles chunk formatting and report generation can be specified in a code chunk. There are a number options you can use in this section [read about here](https://yihui.name/knitr/options/).
 
 ```{r global_options, include=FALSE}
 # This code chunk will define output figure dimensions,
@@ -87,7 +87,7 @@ library("phyloseq"); packageVersion("phyloseq")
 library("vegan"); packageVersion("vegan")
 library("gridExtra"); packageVersion("gridExtra")
 library("knitr"); packageVersion("knitr")
-library("DESeq2"); packageVersion("DeSeq2")
+library("DESeq2"); packageVersion("DESeq2")
 library("plotly"); packageVersion("plotly")
 library("microbiome"); packageVersion("microbiome")
 library("ggpubr"); packageVersion("ggpubr")
@@ -96,7 +96,7 @@ library("data.table"); packageVersion("data.table")
 ```
 ## Set global ggplot2 theme and options.
 
-This sets the plotting aesthetics for every ggplot2 for the rest of the document. There are a tremendous number of ways to customize your ggplot2 settings using theme_set. It is best practice to do this at the beginning of the RMarkdown document so that these settings propogage to the entirety of the studies plots.
+This sets the plotting aesthetics for every ggplot2 for the rest of the document. There are a tremendous number of ways to customize your ggplot2 settings using theme_set. It is best practice to do this at the beginning of the RMarkdown document so that these settings propagate to the entirety of the studies plots.
 
 ```{r global-theme-settings, include=FALSE}
 # Set global theming
@@ -107,7 +107,7 @@ theme_set(theme_bw(base_size = 10,
 
 ```
 
-Of note, there are a number of ways to customize R code chunks. For the knitr and ggplot2 theme settings I have decided to set inlude=FLASE. This tells knitr to exclude the chunk from the final report. In this case, the chunk will still be evaluated as part of the RMarkdown document. If you wish to prevent the chunk from being executed you can set eval=FALSE.
+Of note, there are a number of ways to customize R code chunks. For the knitr and ggplot2 theme settings I have decided to set include=FALSE. This tells knitr to exclude the chunk from the final report. In this case, the chunk will still be evaluated as part of the RMarkdown document. If you wish to prevent the chunk from being executed you can set eval=FALSE.
 
 ## Read in your data
 
@@ -129,14 +129,14 @@ ps0 <- merge_phyloseq(ps0, map)
 sample_variables(ps0) # Display variables from the mapping file
 ntaxa(ps0) # Total number of taxa in the entire data
 rank_names(ps0) # Taxonomic ranks
-get_taxa_unique(ps0, "Phylum") # Unique phyulm names in the file
+get_taxa_unique(ps0, "Phylum") # Unique phylum names in the file
 
 ```
 ## Sample filtering
 
 ```{r sample-filtering}
 # Remove Day -14 cohoused data
-# These samples were collected and sequenced, but were obtained prior to mouse co-housing and thus not inlcuded in subsequent analysis
+# These samples were collected and sequenced, but were obtained prior to mouse co-housing and thus not included in subsequent analysis
 levels(sample_data(ps0)$treatment_days)
 ps0 <- subset_samples(ps0, treatment_days != "D.14")
 levels(sample_data(ps0)$treatment_days)
@@ -285,12 +285,12 @@ Failure to detect and remove "bad" samples can make interpreting ordinations muc
 
 ## Taxon prevalence estimations and filtering
 
-Low abundant taxa typically do not contribute to ecological community evaluation or differential abundnace testing. There are of course caveats to this statement (i.e. low-abundance pathogen detction), but many analysis can benefit from the removal of uninformative (low prevelance) taxa. Removal of low prevelance taxa greatly assist in tests penalized with a false-discovery-rate (FDR) calculation. Similar to outlier sample removal, low prevelant taxa removal should be justified and documented. The following R chunk provides several evaluations and plots to assist with this decision.
+Low abundant taxa typically do not contribute to ecological community evaluation or differential abundance testing. There are of course caveats to this statement (i.e. low-abundance pathogen detection), but many analysis can benefit from the removal of uninformative (low prevalence) taxa. Removal of low prevalence taxa greatly assist in tests penalized with a false-discovery-rate (FDR) calculation. Similar to outlier sample removal, low prevalent taxa removal should be justified and documented. The following R chunk provides several evaluations and plots to assist with this decision.
 
 ## Taxon cleaning 
 
 ```{r taxon-cleaning}
-# Begin by removing sequences that were not classified as Bacteria or were classified as either mitochondria or chlorplast
+# Begin by removing sequences that were not classified as Bacteria or were classified as either mitochondria or chloroplast
 
 ps1 # Check the number of taxa prior to removal
 ps2 <- ps1 %>%
@@ -309,7 +309,7 @@ You will frequently find that you want to analyze a subset of your total data se
 
 Subsetting away samples can create a situation where taxa are present as empty rows. This is because not every sample has every taxa. These can be removed as shown in the R chunk below.
 
-Creating individual subsets like this can be particularly useful when assessing differential abundance using DeSeq2.
+Creating individual subsets like this can be particularly useful when assessing differential abundance using DESeq2.
 
 ```{r subsetting, include=FALSE}
 #Subsets
@@ -377,8 +377,8 @@ ggplotly(p.ra.phylum)
 ```
 
 ```{r prevalence-assessment}
-# Prevelance estimation
-# Calculate feature prevelance across the data set
+# Prevalence estimation
+# Calculate feature prevalence across the data set
 prevdf <- apply(X = otu_table(ps2),MARGIN = ifelse(taxa_are_rows(ps2), yes = 1, no = 2),FUN = function(x){sum(x > 0)})
 
 # Add taxonomy and total read counts to prevdf
@@ -396,17 +396,17 @@ p.prevdf1 <- ggplot(prevdf1, aes(TotalAbundance, Prevalence / nsamples(ps2),colo
   xlab("Total Abundance") + ylab("Prevalence [Frac. Samples]") +
   facet_wrap(~Phylum) +
   theme(legend.position="none") +
-  ggtitle("Phylum Prevelence in All Samples\nColored by Family")
+  ggtitle("Phylum Prevalence in All Samples\nColored by Family")
 p.prevdf1
 
 ```
-This code will produce a table and a plot of all of the Phyla present in your samples along with information about their prevelance (fraction of samples they are present in) and total abundance across all samples. 
+This code will produce a table and a plot of all of the Phyla present in your samples along with information about their prevalence (fraction of samples they are present in) and total abundance across all samples. 
 
 ...ADD ADDITIONAL EXPLANATION AND STRATEGY HERE...
 
-Example on how to filter low prevelant taxa below. Not used for the origianl analysis though, need to consider to include or not and update example below.
+Example on how to filter low prevalent taxa below. Not used for the original analysis though, need to consider to include or not and update example below.
 
-```{r prevelance-filtering-example, eval=FALSE, include=FALSE}
+```{r prevalence-filtering-example, eval=FALSE, include=FALSE}
 # Remove specific taxa
 # Define a variable with taxa to remove
 filterPhyla = c("Fusobacteria", "Tenericutes")
@@ -430,12 +430,12 @@ ntaxa(ps2.prev) # Confirm the taxa were removed
 ```
 ## Data transformation
 
-Many analysis in community ecology and hypothesis testing benefit from data transformation. Many microbiome data sets do not fit to a normal distribution, but transforming them towards normality may enable more appropriate data for specific statistical tests. The choice of transformation is not straight forward. There is literature on how frequently used transfromations affect certain analysis, but every data set may require different considerations. Therefore, it is recommended that you examine the effects of several transformations on your data and explore how they alter your results and interpretation.
+Many analysis in community ecology and hypothesis testing benefit from data transformation. Many microbiome data sets do not fit to a normal distribution, but transforming them towards normality may enable more appropriate data for specific statistical tests. The choice of transformation is not straight forward. There is literature on how frequently used transformations affect certain analysis, but every data set may require different considerations. Therefore, it is recommended that you examine the effects of several transformations on your data and explore how they alter your results and interpretation.
 
-The R chunk below implements several commonly used transformations in microbiome research and plots their results. Similar to outlier removal and prevalance filtering, your choice should be justified, tested and documented.
+The R chunk below implements several commonly used transformations in microbiome research and plots their results. Similar to outlier removal and prevalence filtering, your choice should be justified, tested and documented.
 
 ```{r data-transform, include=FALSE}
-# Transform to Realative abundances
+# Transform to Relative abundances
 ps2.ra <- transform_sample_counts(ps2, function(OTU) OTU/sum(OTU))
 
 # Transform to Proportional Abundance
@@ -447,7 +447,7 @@ ps2.log <- transform_sample_counts(ps2, function(x) log(1 + x))
 # View how each function altered count data
 par(mfrow=c(1,4))
 plot(sort(sample_sums(ps2), TRUE), type = "o", main = "Native", ylab = "RSVs", xlab = "Samples")
-plot(sort(sample_sums(ps2.log), TRUE), type = "o", main = "log Transfromed", ylab = "RSVs", xlab = "Samples")
+plot(sort(sample_sums(ps2.log), TRUE), type = "o", main = "log Transformed", ylab = "RSVs", xlab = "Samples")
 plot(sort(sample_sums(ps2.ra), TRUE), type = "o", main = "Relative Abundance", ylab = "RSVs", xlab = "Samples")
 plot(sort(sample_sums(ps2.prop), TRUE), type = "o", main = "Proportional Abundance", ylab = "RSVs", xlab = "Samples")
 par(mfrow=c(1,4))
@@ -599,10 +599,10 @@ ps2.vehicle_metro <- ps2 %>%
 sample_data(ps2.vehicle_metro)$treatment
 
 # Test for taxa which at one or more time points after time 0 showed a treatment-specific effect
-# Convert phyloseq object to DeSeq2 table
+# Convert phyloseq object to DESeq2 table
 ds.vehicle_metro.LRT <- phyloseq_to_deseq2(ps2.vehicle_metro, ~treatment + treatment_days + treatment:treatment_days)
 
-# Run DeSeq2
+# Run DESeq2
 dds.vehicle_metro.LRT <- DESeq(ds.vehicle_metro.LRT, test="LRT", reduced = ~treatment + treatment_days)
 
 # Tabulate results
@@ -618,7 +618,7 @@ nrow(df.res)
 df.res <- rownames_to_column(df.res, var = "ASV")
 write.table(df.res, file = "./Results/df_deseq2_results.txt", sep = "\t")
 
-# Create appropirately formated taxa table
+# Create appropriately formatted taxa table
 # RDP
 tax.table <- as.tibble(as.data.frame(tax_table(ps2)))
 tax.table <- rownames_to_column(tax.table, var = "ASV")
@@ -633,6 +633,6 @@ ggplot(df.rdp, aes(x = Phylum, y = log2FoldChange, color = Family)) +
 ```
 
 ```{r session-info}
-# Dsiplay current R session information
+# Display current R session information
 sessionInfo()
 ```
