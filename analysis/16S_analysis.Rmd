@@ -53,8 +53,8 @@ For the purposes of this Workshop we have arranged directories and files as foll
 3) Results are in /results/
 4) Figures are in /figures/
 
-
 ## Data and environment initiation
+
 We will begin by customizing our global settings, activating packages and loading our data into R using the following steps:
 
 1) Set global knitr options
@@ -64,20 +64,20 @@ We will begin by customizing our global settings, activating packages and loadin
 
 ### Set global knitr options
 
-Knitr is a standardize library which "knits" together code chunks and converts them to specified format such as HTML or PDF. This is very useful for report generation. The way in which knitr handles chunk formatting and report generation can be specified in a code chunk. There are a number options you can use in this section [read about here](https://yihui.name/knitr/options/).
+Knitr is a standardized library which "knits" together code chunks and converts them to specified format such as HTML or PDF. This is very useful for report generation. The way in which knitr handles chunk formatting and report generation can be specified in a code chunk. There are a number options you can use in this section [read about here](https://yihui.name/knitr/options/).
 
 ```{r global_options, include=FALSE}
-# This code chunk will define output figure dimensions,
-# specified a path where knitted figures will reside after knitting
-# prevents display of warnings in the knitted report
-
+# This chunk defines output figure dimensions,
+# specifies a path where knitted figures will reside after knitting, 
+# and prevents display of warnings in the knitted report
 knitr::opts_chunk$set(fig.width=8,
                       fig.height=6,
-                      fig.path="./figures/",
+                      fig.path="../figures/",
                       dev='png',
                       warning=FALSE,
                       message=FALSE)
 ```
+
 ## Load libraries
 
 ```{r initiate-environment}
@@ -94,6 +94,7 @@ library("ggpubr"); packageVersion("ggpubr")
 library("data.table"); packageVersion("data.table")
 
 ```
+
 ## Set global ggplot2 theme and options.
 
 This sets the plotting aesthetics for every ggplot2 for the rest of the document. There are a tremendous number of ways to customize your ggplot2 settings using theme_set. It is best practice to do this at the beginning of the RMarkdown document so that these settings propagate to the entirety of the studies plots.
@@ -103,7 +104,6 @@ This sets the plotting aesthetics for every ggplot2 for the rest of the document
 # This theme set will change the ggplot2 defaults to use the b&w settings (removes the default gray background) and sets the devault font to 10pt Helvetica.
 theme_set(theme_bw(base_size = 10,
                    base_family = "Arial"))
-
 
 ```
 
@@ -115,11 +115,11 @@ The output from a standard dada2 workflow should be an RDS file. In this case th
 
 ```{r initiate-data}
 # Read in an RDS file containing taxonomic and count information
-ps0 <- readRDS("~/Dropbox/Research/2018_ASM_Workshop/data/16S_data.RDS")
+ps0 <- readRDS("../data/16S_data.RDS")
 ps0
 
 # Read in a mapping file containing sample variable information
-map <- import_qiime_sample_data("~/Dropbox/Research/2018_ASM_Workshop/data/16S_mapping.txt")
+map <- import_qiime_sample_data("../data/16S_mapping.txt")
 dim(map)
 
 # Merge the RDS file with the mapping file
@@ -132,6 +132,7 @@ rank_names(ps0) # Taxonomic ranks
 get_taxa_unique(ps0, "Phylum") # Unique phylum names in the file
 
 ```
+
 ## Sample filtering
 
 ```{r sample-filtering}
@@ -152,6 +153,7 @@ ps0 <- prune_taxa(taxa_sums(ps0) > 0, ps0)
 summary(taxa_sums(ps0))
 
 ```
+
 ## Factor reordering and renaming (optional)
 
 The default sorting for ggplot2 is alphabetical. So if you want to make a box plot comparing Shannon diversity between wild-type and knockout mice, it will by default always place knockout on the left and wild-type on the right. However, you may wish to switch this so the knock-out is on the right and wild-type on the left.
@@ -177,6 +179,7 @@ sample_data(ps0)$treatment_days <- factor(sample_data(ps0)$treatment_days, level
 levels(sample_data(ps0)$treatment_days)
 
 ```
+
 ## ASV summary statistics
 
 Data assessment consists of 2 steps:
@@ -254,7 +257,7 @@ p.ss.boxplot <- ggplot(ss.df, aes_string(x, y = "ASV", color = "treatment")) +
   geom_text(aes_string(label = label), size = 3, nudge_y = 0.05, nudge_x = 0.05)
 p.ss.boxplot
 
-write.table(ss.df, file = "./results/asv_stats.txt", sep = "\t")
+write.table(ss.df, file = "../results/asv_stats.txt", sep = "\t")
 
 ```
 The example data does have a couple of samples with fewer than 1,000 ASVs. However, these come from samples obtained from antibiotic treated mice, so this fits our expectation. There are a 7 samples in the Amp + Metro treated mice at the later time points that seem to be performing differently (very low numbers of ASV) in comparison to the majority of samples. When questionable samples arise you should take note of them so if there are samples which behave oddly in downstream analysis you can recall this information and perhaps justify their removal. In this case lets remove them. 
@@ -277,6 +280,7 @@ ps1 <- ps0 %>%
 nsamples(ps1)
 
 ```
+
 ## Overall sample relationship to evaluate sample outliers
 
 Note that we created a new phyloseq object called ps1. This preserves all of the data in the original ps0 and creates a new data object with the offending sample(s) removed called ps1.
@@ -303,6 +307,7 @@ ps2 <- ps1 %>%
 ps2 # Confirm that the taxa were removed
 
 ```
+
 ## Subsetting
 
 You will frequently find that you want to analyze a subset of your total data set. There are typically commands that will allow you to do this for each individual analysis, but similar to variable reordering it can sometime be more convenient to do this towards the beginning of your analysis. This should be done after removal of outlier samples and taxa. If you wish to create transformed versions of each subset you can either subset the transformed data you just generated, or alternatively retransform your subsetted data. The R chunk below is an example subsetting of the example data by treatment.
@@ -369,7 +374,7 @@ p.ra.phylum
 
 # Note: This is a nice place to output tables of data that you may want to use for other analysis, or to include as supplemental data for publication
 # You can rerun the first bit of code in this chunk and change Phylum to Species for a table with all possible classifications
-write.table(ps2_phylum, file = "./results/phylum_relab.txt", sep = "\t")
+write.table(ps2_phylum, file = "../results/phylum_relab.txt", sep = "\t")
 
 # Draw in interactive plotly plot
 ggplotly(p.ra.phylum)
@@ -428,6 +433,7 @@ ps2.prev <- prune_taxa(keepTaxa, ps2)
 ntaxa(ps2.prev) # Confirm the taxa were removed
 
 ```
+
 ## Data transformation
 
 Many analysis in community ecology and hypothesis testing benefit from data transformation. Many microbiome data sets do not fit to a normal distribution, but transforming them towards normality may enable more appropriate data for specific statistical tests. The choice of transformation is not straight forward. There is literature on how frequently used transformations affect certain analysis, but every data set may require different considerations. Therefore, it is recommended that you examine the effects of several transformations on your data and explore how they alter your results and interpretation.
@@ -467,6 +473,7 @@ p.log <- qplot(log10(rowSums(otu_table(ps2)))) +
 ggarrange(p.nolog, p.log, ncol = 2, labels = c("A)", "B)"))
 
 ```
+
 ## Phyla level plots
 
 ```{r phyla-level-plots-preparation}
@@ -505,6 +512,7 @@ p.gam.phylum <- ggplot(dat.1, aes(x = treatment_days, y = Abundance, color = Phy
 p.gam.phylum
 
 ```
+
 ## Alpha diversity plotting
 
 ```{r alpha-diverstiy-GAM-plots}
@@ -529,6 +537,7 @@ p.sd <- ggplot(ps2.rich, aes(x = treatment_days, y = Observed, color = treatment
 ggarrange(p.rich, p.sd, ncol = 2, labels = c("A)", "B)"))
 
 ```
+
 ## Ordination
 
 ```{r ordination}
@@ -537,6 +546,7 @@ ord.pcoa.uni <- ordinate(ps2, method = "PCoA", distance = "unifrac")
 ord.pcoa.wuni <- ordinate(ps2, method = "PCoA", distance = "wunifrac")
 
 ```
+
 ## Beta diversity ordination plots ~ SurvivalStatus
 
 ```{r ordination-plots}
@@ -560,6 +570,7 @@ p.pcoa.wuni
 ggarrange(p.pcoa.uni, p.pcoa.wuni, nrow = 2, labels = c("A)", "B)"))
 
 ```
+
 ## Group significance testing with ADONIS
 
 ```{r adonis-script}
@@ -588,6 +599,7 @@ doadonis(ps2, "treatment")
 ```
 
 ## **1) LRT: VEHICLE ~ METRO**
+
 ```{r differential-abundance-testing-vehicle-vs-metro-LRT}
 # Subset infected Vehicle and Metro samples for the full treatment period
 sample_data(ps2)$treatment
@@ -610,13 +622,13 @@ res.dds.vehicle_metro.LRT <- results(dds.vehicle_metro.LRT)
 res.dds.vehicle_metro.LRT$symbol <- mcols(dds.vehicle_metro.LRT)$symbol
 summary(res.dds.vehicle_metro.LRT)
 mcols(res.dds.vehicle_metro.LRT)
-write.table(res.dds.vehicle_metro.LRT, file = "./results/deseq_vehicle_v_metro_LRT.txt", sep = "\t")
+write.table(res.dds.vehicle_metro.LRT, file = "../results/deseq_vehicle_v_metro_LRT.txt", sep = "\t")
 
 nrow(res.dds.vehicle_metro.LRT)
 df.res <- as.data.frame(res.dds.vehicle_metro.LRT[ which(res.dds.vehicle_metro.LRT$padj < 0.05), ])
 nrow(df.res)
 df.res <- rownames_to_column(df.res, var = "ASV")
-write.table(df.res, file = "./Results/df_deseq2_results.txt", sep = "\t")
+write.table(df.res, file = "../results/df_deseq2_results.txt", sep = "\t")
 
 # Create appropriately formatted taxa table
 # RDP
