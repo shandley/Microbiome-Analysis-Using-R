@@ -32,7 +32,7 @@ The study followed flavivirus infection after the following treatments:
 3) Metronidazole (Met): https://en.wikipedia.org/wiki/Metronidazole
 4) Ampicillin + Metronidazole (Amp+Metro)
 
-Treatments was supplied for 2 weeks prior to viral infection and maintained for 2 weeks post-infection. Primary outcome was mouse survival. Each antibiotic treatment group had two subgroups of mice that were either a) left uninfected as controls or b) infected with West Nile Virus via a subcutaneous footpad injection.
+Treatments were supplied for 2 weeks prior to viral infection and maintained for 2 weeks post-infection. Primary outcome was mouse survival. Each antibiotic treatment group had two subgroups of mice that were either a) left uninfected as controls or b) infected with West Nile Virus via a subcutaneous footpad injection.
 
 ##Data organization:
 
@@ -87,7 +87,7 @@ library("phyloseq"); packageVersion("phyloseq")
 library("vegan"); packageVersion("vegan")
 library("gridExtra"); packageVersion("gridExtra")
 library("knitr"); packageVersion("knitr")
-library("DESeq2"); packageVersion("DeSeq2")
+library("DESeq2"); packageVersion("DESeq2")
 library("plotly"); packageVersion("plotly")
 library("microbiome"); packageVersion("microbiome")
 library("ggpubr"); packageVersion("ggpubr")
@@ -107,7 +107,7 @@ theme_set(theme_bw(base_size = 10,
 
 ```
 
-Of note, there are a number of ways to customize R code chunks. For the knitr and ggplot2 theme settings I have decided to set inlude=FLASE. This tells knitr to exclude the chunk from the final report. In this case, the chunk will still be evaluated as part of the RMarkdown document. If you wish to prevent the chunk from being executed you can set eval=FALSE.
+Of note, there are a number of ways to customize R code chunks. For the knitr and ggplot2 theme settings I have decided to set `include=FALSE`. This tells knitr to exclude the chunk from the final report. In this case, the chunk will still be evaluated as part of the RMarkdown document. If you wish to prevent the chunk from being executed you can set eval=FALSE.
 
 ##Read in your data
 
