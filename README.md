@@ -1,6 +1,6 @@
-# 2018 ASM MWorkshop
+# 2018 ASM Workshop
 
-#Background
+# Background
 
 Generalized workflow for processing 16S rRNA gene amplicon data. Each R chunk represents a specific analysis type.
 
@@ -29,7 +29,7 @@ The study followed flavivirus infection after the following treatments:
 
 Treatments was supplied for 2 weeks prior to viral infection and maintained for 2 weeks post-infection. Primary outcome was mouse survival. Each antibiotic treatment group had two subgroups of mice that were either a) left uninfected as controls or b) infected with West Nile Virus via a subcutaneous footpad injection.
 
-##Data organization:
+## Data organization:
 
 There is no single way to organize your data, but it is good practice to develop a standard for file storage and naming. An well thought out organization structure will make coding your analysis easier, enable you to more easily return to your data after leaving it for a period of time and facilitate publication of your data.
 
