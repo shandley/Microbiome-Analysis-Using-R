@@ -5,13 +5,13 @@ date: '`r format(Sys.Date(), "%B %d, %Y")`'
 output: html_document
 ---
 
-#Background
+# Background
 
 Generalized workflow for processing 16S rRNA gene amplicon data. Each R chunk represents a specific analysis type.
 
 The code chunks perform the following functions:
 
-1) Environment inititation
+1) Environment initiation
 2) Data loading
 3) Variable examination and modification
 4) Data assessment
@@ -34,7 +34,7 @@ The study followed flavivirus infection after the following treatments:
 
 Treatments was supplied for 2 weeks prior to viral infection and maintained for 2 weeks post-infection. Primary outcome was mouse survival. Each antibiotic treatment group had two subgroups of mice that were either a) left uninfected as controls or b) infected with West Nile Virus via a subcutaneous footpad injection.
 
-##Data organization:
+## Data organization:
 
 There is no single way to organize your data, but it is good practice to develop a standard for file storage and naming. An well thought out organization structure will make coding your analysis easier, enable you to more easily return to your data after leaving it for a period of time and facilitate publication of your data.
 
@@ -43,7 +43,7 @@ The organizational scheme for this workshop is as follow:
 General rules for file naming and organization:
 
 1) Special characters and spaces in file or directory names other than _ and - are evil
-2) Naming parity is useful. For example, if you have a data object called 16S_analysis.RDS, then it would be helpful to have the same prefix for associated files (e.g. 16S_mapping.txt, 16S_data.RmD, 16S_project.RProj)
+2) Naming parity is useful. For example, if you have a data object called 16S_analysis.RDS, then it would be helpful to have the same prefix for associated files (e.g. 16S_mapping.txt, 16S_data.Rmd, 16S_project.RProj)
 
 For the purposes of this Workshop we have arranged directories and files as follows:
 
@@ -53,8 +53,8 @@ For the purposes of this Workshop we have arranged directories and files as foll
 3) Results are in /results/
 4) Figures are in /figures/
 
+## Data and environment initiation
 
-##Data and environment initiation
 We will begin by customizing our global settings, activating packages and loading our data into R using the following steps:
 
 1) Set global knitr options
@@ -62,23 +62,23 @@ We will begin by customizing our global settings, activating packages and loadin
 3) Set global ggplot2 theme and options
 4) Load data
 
-###Set global knitr options
+### Set global knitr options
 
-Knitr is a stanrardize library which "knits" together code chunks and converts them to specified format such as HTML or PDF. This is very useful for report generation. The way in which knitr handles chunk formatting and report generation can be specified in a code chunk. There are a number options you can use in this section [read about here](https://yihui.name/knitr/options/).
+Knitr is a standardized library which "knits" together code chunks and converts them to specified format such as HTML or PDF. This is very useful for report generation. The way in which knitr handles chunk formatting and report generation can be specified in a code chunk. There are a number options you can use in this section [read about here](https://yihui.name/knitr/options/).
 
 ```{r global_options, include=FALSE}
-# This code chunk will define output figure dimensions,
-# specified a path where knitted figures will reside after knitting
-# prevents display of warnings in the knitted report
-
+# This chunk defines output figure dimensions,
+# specifies a path where knitted figures will reside after knitting, 
+# and prevents display of warnings in the knitted report
 knitr::opts_chunk$set(fig.width=8,
                       fig.height=6,
-                      fig.path="./figures/",
+                      fig.path="../figures/",
                       dev='png',
                       warning=FALSE,
                       message=FALSE)
 ```
-##Load libraries
+
+## Load libraries
 
 ```{r initiate-environment}
 library("tidyverse"); packageVersion("tidyverse")
@@ -87,16 +87,17 @@ library("phyloseq"); packageVersion("phyloseq")
 library("vegan"); packageVersion("vegan")
 library("gridExtra"); packageVersion("gridExtra")
 library("knitr"); packageVersion("knitr")
-library("DESeq2"); packageVersion("DeSeq2")
+library("DESeq2"); packageVersion("DESeq2")
 library("plotly"); packageVersion("plotly")
 library("microbiome"); packageVersion("microbiome")
 library("ggpubr"); packageVersion("ggpubr")
 library("data.table"); packageVersion("data.table")
 
 ```
-##Set global ggplot2 theme and options.
 
-This sets the plotting aesthetics for every ggplot2 for the rest of the document. There are a tremendous number of ways to customize your ggplot2 settings using theme_set. It is best practice to do this at the beginning of the RMarkdown document so that these settings propogage to the entirety of the studies plots.
+## Set global ggplot2 theme and options.
+
+This sets the plotting aesthetics for every ggplot2 for the rest of the document. There are a tremendous number of ways to customize your ggplot2 settings using theme_set. It is best practice to do this at the beginning of the RMarkdown document so that these settings propagate to the entirety of the studies plots.
 
 ```{r global-theme-settings, include=FALSE}
 # Set global theming
@@ -104,22 +105,21 @@ This sets the plotting aesthetics for every ggplot2 for the rest of the document
 theme_set(theme_bw(base_size = 10,
                    base_family = "Arial"))
 
-
 ```
 
-Of note, there are a number of ways to customize R code chunks. For the knitr and ggplot2 theme settings I have decided to set inlude=FLASE. This tells knitr to exclude the chunk from the final report. In this case, the chunk will still be evaluated as part of the RMarkdown document. If you wish to prevent the chunk from being executed you can set eval=FALSE.
+Of note, there are a number of ways to customize R code chunks. For the knitr and ggplot2 theme settings I have decided to set include=FALSE. This tells knitr to exclude the chunk from the final report. In this case, the chunk will still be evaluated as part of the RMarkdown document. If you wish to prevent the chunk from being executed you can set eval=FALSE.
 
-##Read in your data
+## Read in your data
 
 The output from a standard dada2 workflow should be an RDS file. In this case the file is called *ps0.rds* (ps is shorthand for PhyloSeq. The 0 indicates it is the 'base' version of the file. As it is modified this can be changed to ps1, ps2, etc.). You may have already merged your mapping file data (sample variables) with the rds file. However, you will likely add or modify this mapping file as you progress, so it is useful to initiate an import/merge of a mapping file at this stage.
 
 ```{r initiate-data}
 # Read in an RDS file containing taxonomic and count information
-ps0 <- readRDS("~/Dropbox/Research/2018_ASM_Workshop/data/16S_data.RDS")
+ps0 <- readRDS("../data/16S_data.RDS")
 ps0
 
 # Read in a mapping file containing sample variable information
-map <- import_qiime_sample_data("~/Dropbox/Research/2018_ASM_Workshop/data/16S_mapping.txt")
+map <- import_qiime_sample_data("../data/16S_mapping.txt")
 dim(map)
 
 # Merge the RDS file with the mapping file
@@ -129,14 +129,15 @@ ps0 <- merge_phyloseq(ps0, map)
 sample_variables(ps0) # Display variables from the mapping file
 ntaxa(ps0) # Total number of taxa in the entire data
 rank_names(ps0) # Taxonomic ranks
-get_taxa_unique(ps0, "Phylum") # Unique phyulm names in the file
+get_taxa_unique(ps0, "Phylum") # Unique phylum names in the file
 
 ```
-##Sample filtering
+
+## Sample filtering
 
 ```{r sample-filtering}
 # Remove Day -14 cohoused data
-# These samples were collected and sequenced, but were obtained prior to mouse co-housing and thus not inlcuded in subsequent analysis
+# These samples were collected and sequenced, but were obtained prior to mouse co-housing and thus not included in subsequent analysis
 levels(sample_data(ps0)$treatment_days)
 ps0 <- subset_samples(ps0, treatment_days != "D.14")
 levels(sample_data(ps0)$treatment_days)
@@ -152,7 +153,8 @@ ps0 <- prune_taxa(taxa_sums(ps0) > 0, ps0)
 summary(taxa_sums(ps0))
 
 ```
-##Factor reordering and renaming (optional)
+
+## Factor reordering and renaming (optional)
 
 The default sorting for ggplot2 is alphabetical. So if you want to make a box plot comparing Shannon diversity between wild-type and knockout mice, it will by default always place knockout on the left and wild-type on the right. However, you may wish to switch this so the knock-out is on the right and wild-type on the left.
 
@@ -177,7 +179,8 @@ sample_data(ps0)$treatment_days <- factor(sample_data(ps0)$treatment_days, level
 levels(sample_data(ps0)$treatment_days)
 
 ```
-##ASV summary statistics
+
+## ASV summary statistics
 
 Data assessment consists of 2 steps:
 
@@ -254,7 +257,7 @@ p.ss.boxplot <- ggplot(ss.df, aes_string(x, y = "ASV", color = "treatment")) +
   geom_text(aes_string(label = label), size = 3, nudge_y = 0.05, nudge_x = 0.05)
 p.ss.boxplot
 
-write.table(ss.df, file = "./results/asv_stats.txt", sep = "\t")
+write.table(ss.df, file = "../results/asv_stats.txt", sep = "\t")
 
 ```
 The example data does have a couple of samples with fewer than 1,000 ASVs. However, these come from samples obtained from antibiotic treated mice, so this fits our expectation. There are a 7 samples in the Amp + Metro treated mice at the later time points that seem to be performing differently (very low numbers of ASV) in comparison to the majority of samples. When questionable samples arise you should take note of them so if there are samples which behave oddly in downstream analysis you can recall this information and perhaps justify their removal. In this case lets remove them. 
@@ -277,20 +280,21 @@ ps1 <- ps0 %>%
 nsamples(ps1)
 
 ```
-##Overall sample relationship to evaluate sample outliers
+
+## Overall sample relationship to evaluate sample outliers
 
 Note that we created a new phyloseq object called ps1. This preserves all of the data in the original ps0 and creates a new data object with the offending sample(s) removed called ps1.
 
 Failure to detect and remove "bad" samples can make interpreting ordinations much more challenging as they typically project as "outliers" severely skewing the rest of the samples. These samples also increase variance and will impede your ability to identify differentially abundant taxa between groups. So sample outlier removal should be a serious and thoughtful part of every analysis in order to obtain optimal results.
 
-##Taxon prevalence estimations and filtering
+## Taxon prevalence estimations and filtering
 
-Low abundant taxa typically do not contribute to ecological community evaluation or differential abundnace testing. There are of course caveats to this statement (i.e. low-abundance pathogen detction), but many analysis can benefit from the removal of uninformative (low prevelance) taxa. Removal of low prevelance taxa greatly assist in tests penalized with a false-discovery-rate (FDR) calculation. Similar to outlier sample removal, low prevelant taxa removal should be justified and documented. The following R chunk provides several evaluations and plots to assist with this decision.
+Low abundant taxa typically do not contribute to ecological community evaluation or differential abundance testing. There are of course caveats to this statement (i.e. low-abundance pathogen detection), but many analysis can benefit from the removal of uninformative (low prevalence) taxa. Removal of low prevalence taxa greatly assist in tests penalized with a false-discovery-rate (FDR) calculation. Similar to outlier sample removal, low prevalent taxa removal should be justified and documented. The following R chunk provides several evaluations and plots to assist with this decision.
 
-##Taxon cleaning 
+## Taxon cleaning 
 
 ```{r taxon-cleaning}
-# Begin by removing sequences that were not classified as Bacteria or were classified as either mitochondria or chlorplast
+# Begin by removing sequences that were not classified as Bacteria or were classified as either mitochondria or chloroplast
 
 ps1 # Check the number of taxa prior to removal
 ps2 <- ps1 %>%
@@ -303,13 +307,14 @@ ps2 <- ps1 %>%
 ps2 # Confirm that the taxa were removed
 
 ```
-##Subsetting
+
+## Subsetting
 
 You will frequently find that you want to analyze a subset of your total data set. There are typically commands that will allow you to do this for each individual analysis, but similar to variable reordering it can sometime be more convenient to do this towards the beginning of your analysis. This should be done after removal of outlier samples and taxa. If you wish to create transformed versions of each subset you can either subset the transformed data you just generated, or alternatively retransform your subsetted data. The R chunk below is an example subsetting of the example data by treatment.
 
 Subsetting away samples can create a situation where taxa are present as empty rows. This is because not every sample has every taxa. These can be removed as shown in the R chunk below.
 
-Creating individual subsets like this can be particularly useful when assessing differential abundance using DeSeq2.
+Creating individual subsets like this can be particularly useful when assessing differential abundance using DESeq2.
 
 ```{r subsetting, include=FALSE}
 #Subsets
@@ -348,7 +353,7 @@ any(taxa_sums(ps2.ampmetro) == 0) # It should now be false
 
 ```
 
-##Community composition plotting
+## Community composition plotting
 
 ```{r community-composition-plots}
 # Create a data table for ggploting
@@ -369,7 +374,7 @@ p.ra.phylum
 
 # Note: This is a nice place to output tables of data that you may want to use for other analysis, or to include as supplemental data for publication
 # You can rerun the first bit of code in this chunk and change Phylum to Species for a table with all possible classifications
-write.table(ps2_phylum, file = "./results/phylum_relab.txt", sep = "\t")
+write.table(ps2_phylum, file = "../results/phylum_relab.txt", sep = "\t")
 
 # Draw in interactive plotly plot
 ggplotly(p.ra.phylum)
@@ -377,8 +382,8 @@ ggplotly(p.ra.phylum)
 ```
 
 ```{r prevalence-assessment}
-# Prevelance estimation
-# Calculate feature prevelance across the data set
+# Prevalence estimation
+# Calculate feature prevalence across the data set
 prevdf <- apply(X = otu_table(ps2),MARGIN = ifelse(taxa_are_rows(ps2), yes = 1, no = 2),FUN = function(x){sum(x > 0)})
 
 # Add taxonomy and total read counts to prevdf
@@ -396,17 +401,17 @@ p.prevdf1 <- ggplot(prevdf1, aes(TotalAbundance, Prevalence / nsamples(ps2),colo
   xlab("Total Abundance") + ylab("Prevalence [Frac. Samples]") +
   facet_wrap(~Phylum) +
   theme(legend.position="none") +
-  ggtitle("Phylum Prevelence in All Samples\nColored by Family")
+  ggtitle("Phylum Prevalence in All Samples\nColored by Family")
 p.prevdf1
 
 ```
-This code will produce a table and a plot of all of the Phyla present in your samples along with information about their prevelance (fraction of samples they are present in) and total abundance across all samples. 
+This code will produce a table and a plot of all of the Phyla present in your samples along with information about their prevalence (fraction of samples they are present in) and total abundance across all samples. 
 
 ...ADD ADDITIONAL EXPLANATION AND STRATEGY HERE...
 
-Example on how to filter low prevelant taxa below. Not used for the origianl analysis though, need to consider to include or not and update example below.
+Example on how to filter low prevalent taxa below. Not used for the original analysis though, need to consider to include or not and update example below.
 
-```{r prevelance-filtering-example, eval=FALSE, include=FALSE}
+```{r prevalence-filtering-example, eval=FALSE, include=FALSE}
 # Remove specific taxa
 # Define a variable with taxa to remove
 filterPhyla = c("Fusobacteria", "Tenericutes")
@@ -428,14 +433,15 @@ ps2.prev <- prune_taxa(keepTaxa, ps2)
 ntaxa(ps2.prev) # Confirm the taxa were removed
 
 ```
-##Data transformation
 
-Many analysis in community ecology and hypothesis testing benefit from data transformation. Many microbiome data sets do not fit to a normal distribution, but transforming them towards normality may enable more appropriate data for specific statistical tests. The choice of transformation is not straight forward. There is literature on how frequently used transfromations affect certain analysis, but every data set may require different considerations. Therefore, it is recommended that you examine the effects of several transformations on your data and explore how they alter your results and interpretation.
+## Data transformation
 
-The R chunk below implements several commonly used transformations in microbiome research and plots their results. Similar to outlier removal and prevalance filtering, your choice should be justified, tested and documented.
+Many analysis in community ecology and hypothesis testing benefit from data transformation. Many microbiome data sets do not fit to a normal distribution, but transforming them towards normality may enable more appropriate data for specific statistical tests. The choice of transformation is not straight forward. There is literature on how frequently used transformations affect certain analysis, but every data set may require different considerations. Therefore, it is recommended that you examine the effects of several transformations on your data and explore how they alter your results and interpretation.
+
+The R chunk below implements several commonly used transformations in microbiome research and plots their results. Similar to outlier removal and prevalence filtering, your choice should be justified, tested and documented.
 
 ```{r data-transform, include=FALSE}
-# Transform to Realative abundances
+# Transform to Relative abundances
 ps2.ra <- transform_sample_counts(ps2, function(OTU) OTU/sum(OTU))
 
 # Transform to Proportional Abundance
@@ -447,7 +453,7 @@ ps2.log <- transform_sample_counts(ps2, function(x) log(1 + x))
 # View how each function altered count data
 par(mfrow=c(1,4))
 plot(sort(sample_sums(ps2), TRUE), type = "o", main = "Native", ylab = "RSVs", xlab = "Samples")
-plot(sort(sample_sums(ps2.log), TRUE), type = "o", main = "log Transfromed", ylab = "RSVs", xlab = "Samples")
+plot(sort(sample_sums(ps2.log), TRUE), type = "o", main = "log Transformed", ylab = "RSVs", xlab = "Samples")
 plot(sort(sample_sums(ps2.ra), TRUE), type = "o", main = "Relative Abundance", ylab = "RSVs", xlab = "Samples")
 plot(sort(sample_sums(ps2.prop), TRUE), type = "o", main = "Proportional Abundance", ylab = "RSVs", xlab = "Samples")
 par(mfrow=c(1,4))
@@ -467,7 +473,8 @@ p.log <- qplot(log10(rowSums(otu_table(ps2)))) +
 ggarrange(p.nolog, p.log, ncol = 2, labels = c("A)", "B)"))
 
 ```
-##Phyla level plots
+
+## Phyla level plots
 
 ```{r phyla-level-plots-preparation}
 # agglomerate taxa
@@ -505,6 +512,7 @@ p.gam.phylum <- ggplot(dat.1, aes(x = treatment_days, y = Abundance, color = Phy
 p.gam.phylum
 
 ```
+
 ## Alpha diversity plotting
 
 ```{r alpha-diverstiy-GAM-plots}
@@ -529,6 +537,7 @@ p.sd <- ggplot(ps2.rich, aes(x = treatment_days, y = Observed, color = treatment
 ggarrange(p.rich, p.sd, ncol = 2, labels = c("A)", "B)"))
 
 ```
+
 ## Ordination
 
 ```{r ordination}
@@ -537,6 +546,7 @@ ord.pcoa.uni <- ordinate(ps2, method = "PCoA", distance = "unifrac")
 ord.pcoa.wuni <- ordinate(ps2, method = "PCoA", distance = "wunifrac")
 
 ```
+
 ## Beta diversity ordination plots ~ SurvivalStatus
 
 ```{r ordination-plots}
@@ -560,7 +570,8 @@ p.pcoa.wuni
 ggarrange(p.pcoa.uni, p.pcoa.wuni, nrow = 2, labels = c("A)", "B)"))
 
 ```
-##Group significance testing with ADONIS
+
+## Group significance testing with ADONIS
 
 ```{r adonis-script}
 # Set a random seed so that exact results can be reproduced
@@ -587,7 +598,8 @@ doadonis(ps2, "treatment")
 
 ```
 
-##**1) LRT: VEHICLE ~ METRO**
+## **1) LRT: VEHICLE ~ METRO**
+
 ```{r differential-abundance-testing-vehicle-vs-metro-LRT}
 # Subset infected Vehicle and Metro samples for the full treatment period
 sample_data(ps2)$treatment
@@ -599,10 +611,10 @@ ps2.vehicle_metro <- ps2 %>%
 sample_data(ps2.vehicle_metro)$treatment
 
 # Test for taxa which at one or more time points after time 0 showed a treatment-specific effect
-# Convert phyloseq object to DeSeq2 table
+# Convert phyloseq object to DESeq2 table
 ds.vehicle_metro.LRT <- phyloseq_to_deseq2(ps2.vehicle_metro, ~treatment + treatment_days + treatment:treatment_days)
 
-# Run DeSeq2
+# Run DESeq2
 dds.vehicle_metro.LRT <- DESeq(ds.vehicle_metro.LRT, test="LRT", reduced = ~treatment + treatment_days)
 
 # Tabulate results
@@ -610,15 +622,15 @@ res.dds.vehicle_metro.LRT <- results(dds.vehicle_metro.LRT)
 res.dds.vehicle_metro.LRT$symbol <- mcols(dds.vehicle_metro.LRT)$symbol
 summary(res.dds.vehicle_metro.LRT)
 mcols(res.dds.vehicle_metro.LRT)
-write.table(res.dds.vehicle_metro.LRT, file = "./results/deseq_vehicle_v_metro_LRT.txt", sep = "\t")
+write.table(res.dds.vehicle_metro.LRT, file = "../results/deseq_vehicle_v_metro_LRT.txt", sep = "\t")
 
 nrow(res.dds.vehicle_metro.LRT)
 df.res <- as.data.frame(res.dds.vehicle_metro.LRT[ which(res.dds.vehicle_metro.LRT$padj < 0.05), ])
 nrow(df.res)
 df.res <- rownames_to_column(df.res, var = "ASV")
-write.table(df.res, file = "./Results/df_deseq2_results.txt", sep = "\t")
+write.table(df.res, file = "../results/df_deseq2_results.txt", sep = "\t")
 
-# Create appropirately formated taxa table
+# Create appropriately formatted taxa table
 # RDP
 tax.table <- as.tibble(as.data.frame(tax_table(ps2)))
 tax.table <- rownames_to_column(tax.table, var = "ASV")
@@ -633,6 +645,6 @@ ggplot(df.rdp, aes(x = Phylum, y = log2FoldChange, color = Family)) +
 ```
 
 ```{r session-info}
-# Dsiplay current R session information
+# Display current R session information
 sessionInfo()
 ```
