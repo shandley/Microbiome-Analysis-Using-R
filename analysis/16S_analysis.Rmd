@@ -218,13 +218,13 @@ grid.arrange(p.reads, p.reads.hist, ncol = 2)
 summary(sample_sums(ps0))
 
 ```
-The above data assessment is useful for getting an idea of 1) the overall taxonomic distribution of your reads (left plot). This will normally be a "long tail" with some taxa being highly abundant in the data tapering off to taxa with very few reads, 2) probably more valuable than the first plot is how many reads are in each sample (middle plot). Very low read count can be indicative of a failed reaction and 3) a histogram of the number of samples at various "bins" of read depth. Each of these plots will help give an understanding of how your data are structured across taxa and samples and will vary depending on the nature of your samples.
+The above data assessment is useful for getting an idea of 1) the number of sequences per taxa (left plot). This will normally be a "long tail" with some taxa being highly abundant in the data tapering off to taxa with very few reads, 2) the number of reads per sample. Note the spike at the lowest number of reads due to samples taken from mice given antibiotics. Very low read count can be indicative of a failed reaction. Both of these plots will help give an understanding of how your data are structured across taxa and samples and will vary depending on the nature of your samples.
 
-Samples with unexpectedly low number of sequences can be safely removed. This is an intuitive process and should be instructed by your understanding of the samples in your study. For example, if you have 5 samples from stool samples, one would expect to obtain thousands, if not several thousands of RSVs. This may not be the case for other tissues, such as spinal fluid or tissue samples. Similarly, you would not expect thousands of RSV from samples obtained from antibiotic treated organisms. Following antibiotic treatment you may be left with dozens or hundreds of RSVs. So contextual awareness about the biology of your system should guide your decision to remove samples based on RSV number. The basic idea is to remove samples with "unexpected" numbers of RSV.
+Samples with unexpectedly low number of sequences can be considered for removal. This is an intuitive process and should be instructed by your understanding of the samples in your study. For example, if you have 5 samples from stool samples, one would expect to obtain thousands, if not several thousands of ASV. This may not be the case for other tissues, such as spinal fluid or tissue samples. Similarly, you may not expect thousands of ASV from samples obtained from antibiotic treated organisms. Following antibiotic treatment you may be left with only dozens or hundreds of ASV. So contextual awareness about the biology of your system should guide your decision to remove samples based on ASV number.
 
 Importantly, at each stage you should document and justify your decisions. If you are concerned that sample removal will alter the interpretation of your results, you should run your analysis on the full data and the data with the sample(s) removed to see how the decision affects your interpretation.
 
-The above plots provide overall summaries about the number of RSVs found in all of your samples. However, they are not very useful for identifying and removing specific samples. This can be done using the following R chunk.
+The above plots provide overall summaries about the number of ASV found in all of your samples. However, they are not very useful for identifying and removing specific samples. One way to do this is using code from the following R chunk.
 
 ```{r sample-removal-identification}
 # Format a data table to combine sample summary data with sample variable data
@@ -250,7 +250,7 @@ p.ss.boxplot
 write.table(ss.df, file = "./results/asv_stats.txt", sep = "\t")
 
 ```
-The example data does have a couple of samples with fewer than 1,000 ASVs. However, these come from samples obtained from antibiotic treated mice, so this fits our expectation. There are a 7 samples in the Amp + Metro treated mice at the later time points that seem to be performing differently (very low numbers of ASV) in comparison to the majority of samples. When questionable samples arise you should take note of them so if there are samples which behave oddly in downstream analysis you can recall this information and perhaps justify their removal. In this case lets remove them. 
+The example data does have a couple of samples with fewer than 1,000 ASV. However, these come from samples obtained from antibiotic treated mice, so this fits our expectation. There are a 10 samples in the Amp + Metro treated mice at the later time points that seem to be performing differently (fewer than 1,000 ASV) in comparison to the majority of samples. When questionable samples arise you should take note of them so if there are samples which behave oddly in downstream analysis you can recall this information and perhaps justify their removal. In this case lets remove them for practice. 
 
 ```{r sample-outlier-removal}
 nsamples(ps0)
@@ -272,18 +272,22 @@ nsamples(ps1)
 ```
 ##Overall sample relationship to evaluate sample outliers
 
-Note that we created a new phyloseq object called ps1. This preserves all of the data in the original ps0 and creates a new data object with the offending sample(s) removed called ps1.
+Note that we created a new phyloseq object called ps1. This preserves all of the data in the original ps0 and creates a new data object with the offending samples removed called ps1.
 
-Failure to detect and remove "bad" samples can make interpreting ordinations much more challenging as they typically project as "outliers" severely skewing the rest of the samples. These samples also increase variance and will impede your ability to identify differentially abundant taxa between groups. So sample outlier removal should be a serious and thoughtful part of every analysis in order to obtain optimal results.
+Failure to detect and remove "bad" samples can make interpreting ordinations much more challenging as they typically project as "outliers" severely skewing the rest of the samples. These samples also increase variance and will impede your ability to identify differentially abundant taxa between groups. Thus sample outlier removal should be a serious and thoughtful part of every analysis in order to obtain optimal results.
 
 ##Taxon prevalence estimations and filtering
 
-Low abundant taxa typically do not contribute to ecological community evaluation or differential abundnace testing. There are of course caveats to this statement (i.e. low-abundance pathogen detction), but many analysis can benefit from the removal of uninformative (low prevelance) taxa. Removal of low prevelance taxa greatly assist in tests penalized with a false-discovery-rate (FDR) calculation. Similar to outlier sample removal, low prevelant taxa removal should be justified and documented. The following R chunk provides several evaluations and plots to assist with this decision.
+Low abundant taxa typically do not contribute to ecological community evaluation. There are of course caveats to this statement (i.e. low-abundance pathogen detction), but many analysis can benefit from the removal of uninformative (low prevelance) taxa. Removal of low prevelance taxa greatly assist in tests penalized with a false-discovery-rate (FDR) calculation. Similar to outlier sample removal, low prevelant taxa removal should be justified and documented. The following R chunk provides several evaluations and plots to assist with this decision.
 
 ##Taxon cleaning 
 
 ```{r taxon-cleaning}
 # Begin by removing sequences that were not classified as Bacteria or were classified as either mitochondria or chlorplast
+
+# Some examples of taxa you may not want to include in your analysis
+get_taxa_unique(ps1, "Kingdom")
+get_taxa_unique(ps1, "Class")
 
 ps1 # Check the number of taxa prior to removal
 ps2 <- ps1 %>%
@@ -298,7 +302,7 @@ ps2 # Confirm that the taxa were removed
 ```
 ##Subsetting
 
-You will frequently find that you want to analyze a subset of your total data set. There are typically commands that will allow you to do this for each individual analysis, but similar to variable reordering it can sometime be more convenient to do this towards the beginning of your analysis. This should be done after removal of outlier samples and taxa. If you wish to create transformed versions of each subset you can either subset the transformed data you just generated, or alternatively retransform your subsetted data. The R chunk below is an example subsetting of the example data by treatment.
+You will frequently find that you want to analyze a subset of your total data set. There are typically commands that will allow you to do this for each individual analysis, but similar to variable reordering it can sometimes be more convenient to do this towards the beginning of your analysis. This should be done after removal of outlier samples and taxa. If you wish to create transformed versions of each subset you can either subset the transformed data you just generated, or alternatively retransform your subsetted data. The R chunk below is an example subsetting of the example data by treatment.
 
 Subsetting away samples can create a situation where taxa are present as empty rows. This is because not every sample has every taxa. These can be removed as shown in the R chunk below.
 
@@ -340,11 +344,12 @@ ps2.ampmetro <- prune_taxa(taxa_sums(ps2.ampmetro) > 0, ps2.ampmetro)
 any(taxa_sums(ps2.ampmetro) == 0) # It should now be false
 
 ```
-
 ##Community composition plotting
 
+Classic barplots of bacterial phyla present per sample can be useful for communicating "high level" results. These are relatively easy to interpert when major shifts in microbial communities are present, such as in this study where antibiotics are sued. However, they are not effective at detecting subtle shifts in communities or taxa and do not convey any statistical significance and can be subjectively interperted. Interpretation of these plots should always be subject to subsequent statistical analysis.
+
 ```{r community-composition-plots}
-# Create a data table for ggploting
+# Create a data table for ggplot
 ps2_phylum <- ps2 %>%
   tax_glom(taxrank = "Phylum") %>%                     # agglomerate at phylum level
   transform_sample_counts(function(x) {x/sum(x)} ) %>% # Transform to rel. abundance (or use ps0.ra)
@@ -360,14 +365,20 @@ p.ra.phylum <- ggplot(ps2_phylum, aes(x = sample_id, y = Abundance, fill = Phylu
   labs(title = "Abundant Phylum (> 1%)")
 p.ra.phylum
 
-# Note: This is a nice place to output tables of data that you may want to use for other analysis, or to include as supplemental data for publication
 # You can rerun the first bit of code in this chunk and change Phylum to Species for a table with all possible classifications
-write.table(ps2_phylum, file = "./results/phylum_relab.txt", sep = "\t")
 
 # Draw in interactive plotly plot
 ggplotly(p.ra.phylum)
 
 ```
+## Prevalance assessment
+
+Identification of taxa that are poorly represented in an unsupervised manner can identify taxa that will have little to no effect on downstream analysis. Sufficient removal of these "low prevalance" features can enhance many analysis by focusing statistical testing on taxa common throughout the data.
+
+This approach is frequently poorly documented or justified in methods sections of manuscripts, but will typically read something like, "Taxa present in fewer than 3% of all of the samples within the study population and less than 5% relative abundance were removed from all subsequent analysis.".
+
+While the ultimate selection criteria can still be subjective, the following plots can be useful for making your selection criteria.
+
 
 ```{r prevalence-assessment}
 # Prevelance estimation
@@ -376,9 +387,6 @@ prevdf <- apply(X = otu_table(ps2),MARGIN = ifelse(taxa_are_rows(ps2), yes = 1, 
 
 # Add taxonomy and total read counts to prevdf
 prevdf <- data.frame(Prevalence = prevdf, TotalAbundance = taxa_sums(ps2), tax_table(ps2))
-
-# Create a table of Phylum, their mean abundances across all samples, and the number of samples they were detected in
-plyr::ddply(prevdf, "Phylum", function(df1){cbind(mean(df1$Prevalence),sum(df1$Prevalence))})
 
 #Prevalence plot
 prevdf1 <- subset(prevdf, Phylum %in% get_taxa_unique(ps0, "Phylum"))
@@ -393,21 +401,19 @@ p.prevdf1 <- ggplot(prevdf1, aes(TotalAbundance, Prevalence / nsamples(ps2),colo
 p.prevdf1
 
 ```
-This code will produce a table and a plot of all of the Phyla present in your samples along with information about their prevelance (fraction of samples they are present in) and total abundance across all samples. 
+This code will produce a plot of all of the Phyla present in your samples along with information about their prevelance (fraction of samples they are present in) and total abundance across all samples. In this example we drew a dashed horizontal line to cross at the 5% prevalance level (present in > 5% of all of the samples in the study). If you set a threshold to remove taxa below that level you can visually see how many and what types of taxa will be removed. Whatever, threshold you choose to use it should be well documented within your materials and methods.
 
-...ADD ADDITIONAL EXPLANATION AND STRATEGY HERE...
+An example on how to filter low prevelant taxa is below.
 
-Example on how to filter low prevelant taxa below. Not used for the origianl analysis though, need to consider to include or not and update example below.
-
-```{r prevelance-filtering-example, eval=FALSE, include=FALSE}
+```{r prevelance-filtering}
 # Remove specific taxa
-# Define a variable with taxa to remove
+# Define a list with taxa to remove
 filterPhyla = c("Fusobacteria", "Tenericutes")
 filterPhyla
 
-get_taxa_unique(ps2, "Phylum") # Check the number of taxa prior to removal
+get_taxa_unique(ps2, "Phylum")
 ps2.prev <- subset_taxa(ps2, !Phylum %in% filterPhyla) 
-get_taxa_unique(ps2.prev, "Phylum") # Confirm the taxa were removed
+get_taxa_unique(ps2.prev, "Phylum")
 
 # Removing taxa that fall below 5% prevelance
 # Define the prevalence threshold
@@ -416,9 +422,10 @@ prevalenceThreshold
 
 # Define which taxa fall within the prevalence threshold
 keepTaxa <- rownames(prevdf1)[(prevdf1$Prevalence >= prevalenceThreshold)]
-ntaxa(ps2) # Check the number of taxa prior to removal
+ntaxa(ps2)
+# Remove those taxa
 ps2.prev <- prune_taxa(keepTaxa, ps2)
-ntaxa(ps2.prev) # Confirm the taxa were removed
+ntaxa(ps2.prev)
 
 ```
 ##Data transformation
@@ -427,7 +434,7 @@ Many analysis in community ecology and hypothesis testing benefit from data tran
 
 The R chunk below implements several commonly used transformations in microbiome research and plots their results. Similar to outlier removal and prevalance filtering, your choice should be justified, tested and documented.
 
-```{r data-transform, include=FALSE}
+```{r data-transform}
 # Transform to Realative abundances
 ps2.ra <- transform_sample_counts(ps2, function(OTU) OTU/sum(OTU))
 
@@ -462,8 +469,12 @@ ggarrange(p.nolog, p.log, ncol = 2, labels = c("A)", "B)"))
 ```
 ##Phyla level plots
 
+Similar to the bar charts above, certain data with strong effects can be assessed with high level plots. While these plots do not reveal low-level detail about bacterial species, they can provide a visual assessment of how bacterial community structure is behaving within your experimental system. As another example on how one might display the time-series data collected as part of this study one can use line plots to examine the trajectories of each major taxa following each treatment.
+
+In order to display these plots, some work needs to be done to convert the data from a phyloseq object into a data table useful for non-phloyseq specific ggplot aesthetics. This first chunk takes care of a majority of this preparatory work.
+
 ```{r phyla-level-plots-preparation}
-# agglomerate taxa
+# agglomerate taxa to a specific taxanomic level
 glom <- tax_glom(ps2.ra, taxrank = 'Phylum')
 
 # create dataframe from phyloseq object
@@ -474,22 +485,17 @@ levels(dat$Phylum)
 dat$Phylum <- factor(dat$Phylum, levels = c("Bacteroidetes", "Firmicutes", "Proteobacteria", "Tenericutes", "Actinobacteria", "Verrucomicrobia"))
 levels(dat$Phylum)
 
-# Reduced to most abundant phylum
-dat %>%
-  group_by(Phylum) %>%
-  summarise(Mean = mean(Abundance)) %>%
-  arrange(desc(Mean))
-
-# Select 4 most abundant Phyla
+# Select 4 most abundant Phyla for a reduced plot
 dat.1 <- filter(dat, Phylum %in% c("Bacteroidetes", "Firmicutes", "Proteobacteria", "Verrucomicrobia"))
 levels(dat.1$Phylum)
 dat.1 <- droplevels(dat.1)
 levels(dat.1$Phylum)
 
 ```
+And now for the actual plot of the prepared data.
 
 ```{r phyla-level-plotting}
-# Phyla plots with GAM smoother 
+# Phyla plots with loess smoother 
 p.gam.phylum <- ggplot(dat.1, aes(x = treatment_days, y = Abundance, color = Phylum, group = Phylum)) +
   stat_smooth(method = "loess") +
   facet_grid(~treatment) +
@@ -499,6 +505,10 @@ p.gam.phylum
 
 ```
 ## Alpha diversity plotting
+
+Alpha diversity is a standard tool researchers can use to calcuate the number of bacterial present in a study or study group and the relationships between relative abundance and how evenly taxa are distributed. These are classic representations of species number and diversity in a study which provide useful summary information about the numbers and relative abundances of bacterial taxa within your study.
+
+Similar to the plot above, we can calculate several measures of alpha diversity, add them to a data frame and use ggplot2 to follow the alpha diversity trajectory over time.
 
 ```{r alpha-diverstiy-GAM-plots}
 alpha.div <- estimate_richness(ps2, measures = c("Observed", "Shannon"))
@@ -524,13 +534,18 @@ ggarrange(p.rich, p.sd, ncol = 2, labels = c("A)", "B)"))
 ```
 ## Ordination
 
+Beta diversity enables you to view overall relationships between samples based on their diversities. These relationships are calculated using a distance measure calcuation (of which there are many) and these multi-dimensional relationships are evaluated and viewed in the two dimensions which explain the majority of their variance.
+
+As mentioned above, there are a large number of ways to calcuate distances between samples. The UniFrac distance measure takes advantage of the phylogenetic relationships between bacterial taxa by down-weighting relationships between bacterial taxa that are phylogenetically related versus ones that are distantly related. Weighted UniFrac builds on this by also taking into account the relative abundances of each taxa. For a more detailed discussion on these distance calcuations see: https://en.wikipedia.org/wiki/UniFrac. Ultimately, the decision on what distance metric to use should be a result of experimintation and a good understanding of the underlying properties of your data.
+
+The following R chunks calcuate UniFrac and wUniFrac on a phyloseq object and display the the two components of these results that explain a majority of the variance in the data using Principle Coordinates Analysis (PCoA). For a detailed explanation of how PCoA works see: https://sites.google.com/site/mb3gustame/dissimilarity-based-methods/principal-coordinates-analysis.
+
 ```{r ordination}
 #Ordination Analysis
 ord.pcoa.uni <- ordinate(ps2, method = "PCoA", distance = "unifrac")
 ord.pcoa.wuni <- ordinate(ps2, method = "PCoA", distance = "wunifrac")
 
 ```
-## Beta diversity ordination plots ~ SurvivalStatus
 
 ```{r ordination-plots}
 ## Ordination plots all samples
