@@ -23,27 +23,27 @@ The code chunks perform the following functions:
 10) Beta diversity analysis
 11) Differential abundance testing
 
-The data originate from a study on the bacterial microbiome of mice treated with or without antibiotics to test the affects of the microbiome on flavivirus infection (https://www.ncbi.nlm.nih.gov/pubmed/29590614). Sequence data was generated from extracted nucleic acid from stool samples collected from individually caged mice and amplified using primers specific for the V4 region using primers 515F/806R.
+The data originate from a study on the bacterial microbiome of mice treated with or without antibiotics to test the affects of the antibiotic administration on flavivirus infection (https://www.ncbi.nlm.nih.gov/pubmed/29590614). Sequence data was generated from extracted nucleic acid from stool samples collected from individually caged mice and amplified using primers specific for the V4 region using primers 515F/806R.
 
 The study followed flavivirus infection after the following treatments:
 
-1) Koolaid: Antibiotics are provided to the mice via their drinking water. As many of the antibiotics taste bad, koolaid is added as a sweetener. Therefore, the appropriate control is water spike with koolaid.
+1) Koolaid: Antibiotics are provided to the mice via their drinking water. As many of the antibiotics taste bad, koolaid is added as a sweetener Therefore, the appropriate control is water spiked with koolaid.
 2) Ampicillin (Amp): https://en.wikipedia.org/wiki/Ampicillin
 3) Metronidazole (Met): https://en.wikipedia.org/wiki/Metronidazole
 4) Ampicillin + Metronidazole (Amp+Metro)
 
-Treatments was supplied for 2 weeks prior to viral infection and maintained for 2 weeks post-infection. Primary outcome was mouse survival. Each antibiotic treatment group had two subgroups of mice that were either a) left uninfected as controls or b) infected with West Nile Virus via a subcutaneous footpad injection.
+Treatments were supplied ad libitum for 2 weeks prior to viral infection and maintained for 2 weeks post-infection. Primary outcome was mouse survival. Each treatment group had two subgroups of mice that were either a) left uninfected as controls or b) infected with West Nile Virus via a subcutaneous footpad injection.
 
 ##Data organization:
 
-There is no single way to organize your data, but it is good practice to develop a standard for file storage and naming. An well thought out organization structure will make coding your analysis easier, enable you to more easily return to your data after leaving it for a period of time and facilitate publication of your data.
+There is no single way to organize your data, but it is good practice to develop a standard for file storage and naming. A well thought out organizationl structure will make coding, analysis and interpretation easier. It will also enable you to more easily return to your data after leaving it for a period of time and facilitate publication of your data.
 
 The organizational scheme for this workshop is as follow:
 
 General rules for file naming and organization:
 
 1) Special characters and spaces in file or directory names other than _ and - are evil
-2) Naming parity is useful. For example, if you have a data object called 16S_analysis.RDS, then it would be helpful to have the same prefix for associated files (e.g. 16S_mapping.txt, 16S_data.RmD, 16S_project.RProj)
+2) A defined, standard naming convention is extremely useful. For example, if you have a data object called 16S_analysis.RDS, then it would be helpful to have the same prefix for associated files (e.g. 16S_mapping.txt, 16S_data.RmD, 16S_project.RProj). This is very useful when you are working on more than one project at a time and can provide project specific naming details.
 
 For the purposes of this Workshop we have arranged directories and files as follows:
 
@@ -53,12 +53,11 @@ For the purposes of this Workshop we have arranged directories and files as foll
 3) Results are in /results/
 4) Figures are in /figures/
 
-
-##Data and environment initiation
+##Environment inititation
 We will begin by customizing our global settings, activating packages and loading our data into R using the following steps:
 
 1) Set global knitr options
-2) Load libraries
+2) Load libraries (the app store of R)
 3) Set global ggplot2 theme and options
 4) Load data
 
@@ -96,7 +95,7 @@ library("data.table"); packageVersion("data.table")
 ```
 ##Set global ggplot2 theme and options.
 
-This sets the plotting aesthetics for every ggplot2 for the rest of the document. There are a tremendous number of ways to customize your ggplot2 settings using theme_set. It is best practice to do this at the beginning of the RMarkdown document so that these settings propogage to the entirety of the studies plots.
+This sets the plotting aesthetics for every ggplot2 for the rest of the document. There are a tremendous number of ways to customize your ggplot2 settings using theme_set. It is best practice to do this at the beginning of the RMarkdown document so that these settings propogated through the rest of the document.
 
 ```{r global-theme-settings, include=FALSE}
 # Set global theming
@@ -111,15 +110,15 @@ Of note, there are a number of ways to customize R code chunks. For the knitr an
 
 ##Read in your data
 
-The output from a standard dada2 workflow should be an RDS file. In this case the file is called *ps0.rds* (ps is shorthand for PhyloSeq. The 0 indicates it is the 'base' version of the file. As it is modified this can be changed to ps1, ps2, etc.). You may have already merged your mapping file data (sample variables) with the rds file. However, you will likely add or modify this mapping file as you progress, so it is useful to initiate an import/merge of a mapping file at this stage.
+The output from a standard dada2 workflow should be an RDS file. In this case the file is called *ps0.rds* (ps is shorthand for PhyloSeq. The 0 indicates it is the 'base' version of the file. As it is modified this can be changed to ps1, ps2, etc.). You may have already merged your mapping file data (sample variables, aka metadata file) with the rds file. However, in this case the metadata are not associated with the sequence data generated from dada2, so we will merge these files now.
 
 ```{r initiate-data}
 # Read in an RDS file containing taxonomic and count information
-ps0 <- readRDS("~/Dropbox/Research/2018_ASM_Workshop/data/16S_data.RDS")
+ps0 <- readRDS("~/Dropbox/Research/2018_ASM_Workshop/data/16S_data.RDS") # /cloud/project/data/16S_data.RDS
 ps0
 
 # Read in a mapping file containing sample variable information
-map <- import_qiime_sample_data("~/Dropbox/Research/2018_ASM_Workshop/data/16S_mapping.txt")
+map <- import_qiime_sample_data("~/Dropbox/Research/2018_ASM_Workshop/data/16S_mapping.txt") # /cloud/project/data/16S_mapping.txt
 dim(map)
 
 # Merge the RDS file with the mapping file
@@ -135,8 +134,8 @@ get_taxa_unique(ps0, "Phylum") # Unique phyulm names in the file
 ##Sample filtering
 
 ```{r sample-filtering}
-# Remove Day -14 cohoused data
-# These samples were collected and sequenced, but were obtained prior to mouse co-housing and thus not inlcuded in subsequent analysis
+# Remove Day -14 cohoused data (coded as D.14)
+# These samples were collected and sequenced, but were obtained prior to mouse co-housing and thus not inlcuded in and of the subsequent analysis
 levels(sample_data(ps0)$treatment_days)
 ps0 <- subset_samples(ps0, treatment_days != "D.14")
 levels(sample_data(ps0)$treatment_days)
@@ -152,13 +151,13 @@ ps0 <- prune_taxa(taxa_sums(ps0) > 0, ps0)
 summary(taxa_sums(ps0))
 
 ```
-##Factor reordering and renaming (optional)
+##Factor reordering and renaming
 
-The default sorting for ggplot2 is alphabetical. So if you want to make a box plot comparing Shannon diversity between wild-type and knockout mice, it will by default always place knockout on the left and wild-type on the right. However, you may wish to switch this so the knock-out is on the right and wild-type on the left.
+The default sorting for ggplot2 is alphabetical. For example, if you want to make a box plot comparing Shannon diversity between wild-type and knockout mice, it will by default always place knockout on the left and wild-type on the right. However, you may wish to switch this so the knock-out is on the right and wild-type on the left.
 
 This can be done on a plot-by-plot basis, however, it is likely that you will want all of your plots to reflect this customization throughout the entire analysis, so it is useful to have an R chunk at the very beginning of your workflow to specify order and label names.
 
-In the example data, most of the analysis will be done comparing the sample variable "treatment" which is either KoolAid or Ampicillin in the mapping file. Due to default ordering, Ampicillin will always appear before Koolaid. We want the control displayed first (on the left of most plots). We also want to use the more formal "Vehicle" to indicate that a "vehicle control" was used. Koolaid is added to the water to encourage mice to drink the antibiotic laden water. This would be indicated in the methods of a manuscript, but the plots should be more formal and indicate that this was a vehicle control. The code chunk below provides examples for reordering and relabeling sample variable data.
+In the example data, most of the analysis will be done comparing the sample variable "treatment" which is either KoolAid or one of the three antibiotics treatments in the mapping file. Due to default ordering, Ampicillin will always appear before Koolaid. We want the control displayed first (on the left of most plots). We also want to use the more formal "Vehicle" to indicate that a "vehicle control" was used. The code chunk below provides examples for reordering and relabeling sample variable data.
 
 ```{r factor-adjustments}
 # Reorder Treatments
@@ -167,10 +166,10 @@ sample_data(ps0)$treatment <- factor(sample_data(ps0)$treatment, levels = c("Veh
 levels(sample_data(ps0)$treatment)
 
 # Relabel Treatments
+# Note: the subtle change here is alterening "levels" from the above command to "labels"
 sample_data(ps0)$treatment <- factor(sample_data(ps0)$treatment, labels = c("Vehicle","Metro","Amp","Amp + Metro"))
 levels(sample_data(ps0)$treatment)
 
-# Factor re-ordering, relabelling, etc.
 # Reorder Time points
 levels(sample_data(ps0)$treatment_days)
 sample_data(ps0)$treatment_days <- factor(sample_data(ps0)$treatment_days, levels = c("D0", "D3", "D7", "D13", "D16", "D18", "D20"))
@@ -188,15 +187,9 @@ Begin by running the following R chunk to produce several summary plots and basi
 
 ```{r data-assessment}
 # Create a new data frame of the sorted row sums, a column of sorted values from 1 to the total number of individuals/counts for each ASV and a categorical variable stating these are all ASVs.
-readsumsdf <- data.frame(nreads = sort(taxa_sums(ps0), TRUE), 
+readsumsdf <- data.frame(nreads = sort(taxa_sums(ps0), decreasing = TRUE), 
                         sorted = 1:ntaxa(ps0),
                         type = "ASVs")
-
-# Add a column of sample sums (total number of individuals per sample)
-readsumsdf <- rbind(readsumsdf,
-                   data.frame(nreads = sort(sample_sums(ps0), TRUE),
-                              sorted = 1:nsamples(ps0),
-                              type = "Samples"))
 
 # Make a data frame with a column for the read counts of each sample for histogram production
 sample_sum_df <- data.frame(sum = sample_sums(ps0))
