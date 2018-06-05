@@ -1,4 +1,5 @@
 # 2018 ASM Workshop *"Microbiome Analysis Using R"*
+*June 7, 2018*
 
 # Background
 
