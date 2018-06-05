@@ -114,11 +114,11 @@ The output from a standard dada2 workflow will be an RDS file. In this case the 
 
 ```{r initiate-data}
 # Read in an RDS file containing taxonomic and count information
-ps0 <- readRDS("~/Dropbox/Research/2018_ASM_Workshop/data/16S_data.RDS") # /cloud/project/data/16S_data.RDS
+ps0 <- readRDS("/cloud/project/data/16S_data.RDS")
 ps0
 
 # Read in a mapping file containing sample variable information
-map <- import_qiime_sample_data("~/Dropbox/Research/2018_ASM_Workshop/data/16S_mapping.txt") # /cloud/project/data/16S_mapping.txt
+map <- import_qiime_sample_data("/cloud/project/data/16S_mapping.txt")
 dim(map)
 
 # Merge the RDS file with the mapping file
