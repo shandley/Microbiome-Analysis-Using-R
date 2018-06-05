@@ -7,6 +7,8 @@
 
 - You do not need to insall anything prior to the Workshop. The course will be run through RStduio Cloud which runs through a web browser on all operating systems (Windows, MacOS, Linux)
 
+- Since the hands-on portion will run through a web browser we recommend you connect to the free conference WiFi provided by ASM prior to arriving to the course
+
 # Background
 
 The ASM Workshop on *"Microbiome Analysis Using R" is intended to provide an overview of the basic principles underlying microbiome analysis. While the focus will be on the practical aspects of using R to complete this analysis, discussion on best practices, study design and ecological analysis will be discussed.
