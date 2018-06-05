@@ -1,4 +1,4 @@
-# 2018 ASM Workshop
+# 2018 ASM Workshop "Microbiome Analysis Using R"
 
 # Background
 
@@ -47,3 +47,36 @@ For the purposes of this Workshop we have arranged directories and files as foll
 3) Analysis files (typically RMarkdown documents) are in /analysis/
 3) Results are in /results/
 4) Figures are in /figures/
+
+
+# Install required R packages
+
+Extensions to R in the form of purpose-specific packages
+must be installed prior to loading them in your R sessions.
+Installation can be accomplished within an R session,
+or by calling an R script that already defines the installation commands.
+
+## R
+
+Open and run the following R script (or execute it from the command line):
+
+`install.R`
+
+## Docker
+
+Alternatively, you can [install docker](https://docs.docker.com/install/),
+and then run our everything-installed-already docker container
+via the following command:
+
+```
+sudo docker run --rm -p 8787:8787 joey711/2018asm
+```
+
+If there were now errors and your terminal cursor is sitting idle, 
+it means the container was successfully downloaded 
+and is now running RStudio for you in the background.
+Go to this local browser location to begin working in RStudio:
+
+```
+0.0.0.0:8787
+```
