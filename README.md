@@ -23,34 +23,4 @@ An overview of the analysis steps implemented:
 
 The data originate from a study on the bacterial microbiome of mice treated with or without antibiotics to test the affects of the microbiome on flavivirus infection (https://www.ncbi.nlm.nih.gov/PubMed/29590614).
 
-# Install required R packages
 
-Extensions to R in the form of purpose-specific packages
-must be installed prior to loading them in your R sessions.
-Installation can be accomplished within an R session,
-or by calling an R script that already defines the installation commands.
-
-## R
-
-Open and run the following R script (or execute it from the command line):
-
-`install.R`
-
-## Docker
-
-Alternatively, you can [install docker](https://docs.docker.com/install/),
-and then run our everything-installed-already docker container
-via the following command:
-
-```
-sudo docker run --rm -p 8787:8787 joey711/2018asm
-```
-
-If there were now errors and your terminal cursor is sitting idle, 
-it means the container was successfully downloaded 
-and is now running RStudio for you in the background.
-Go to this local browser location to begin working in RStudio:
-
-```
-0.0.0.0:8787
-```
