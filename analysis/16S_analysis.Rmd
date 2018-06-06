@@ -4,7 +4,6 @@ author: "Scott A. Handley"
 date: '`r format(Sys.Date(), "%B %d, %Y")`'
 output: html_document
 ---
-
 # Background
 
 Generalized workflow for processing 16S rRNA gene amplicon data. Each R chunk represents a specific analysis type.
@@ -12,9 +11,9 @@ Generalized workflow for processing 16S rRNA gene amplicon data. Each R chunk re
 The code chunks perform the following functions:
 
 1) Environment initiation
-2) Data loading
+2) Read in your data and select samples for analysis
 3) Variable examination and modification
-4) Data assessment
+4) Data summary and assessment
 5) Taxon prevalence estimations and filtering
 6) Data transformation
 7) Subsetting
@@ -23,26 +22,27 @@ The code chunks perform the following functions:
 10) Beta diversity analysis
 11) Differential abundance testing
 
-The data originate from a study on the bacterial microbiome of mice treated with or without antibiotics to test the affects of the microbiome on flavivirus infection (https://www.ncbi.nlm.nih.gov/pubmed/29590614). Sequence data was generated from extracted nucleic acid from stool samples collected from individually caged mice and amplified using primers specific for the V4 region using primers 515F/806R.
+The data originate from a study on the bacterial microbiome of mice treated with or without antibiotics to test the affects of the antibiotic administration on flavivirus infection (https://www.ncbi.nlm.nih.gov/pubmed/29590614). Sequence data was generated from extracted nucleic acid from stool samples collected from individually caged mice and amplified using primers specific for the V4 region using primers 515F/806R.
 
 The study followed flavivirus infection after the following treatments:
 
-1) Koolaid: Antibiotics are provided to the mice via their drinking water. As many of the antibiotics taste bad, koolaid is added as a sweetener. Therefore, the appropriate control is water spike with koolaid.
+1) Koolaid: Antibiotics are provided to the mice via their drinking water. As many of the antibiotics taste bad, koolaid is added as a sweetener Therefore, the appropriate control is water spiked with koolaid.
 2) Ampicillin (Amp): https://en.wikipedia.org/wiki/Ampicillin
 3) Metronidazole (Met): https://en.wikipedia.org/wiki/Metronidazole
 4) Ampicillin + Metronidazole (Amp+Metro)
 
-Treatments were supplied for 2 weeks prior to viral infection and maintained for 2 weeks post-infection. Primary outcome was mouse survival. Each antibiotic treatment group had two subgroups of mice that were either a) left uninfected as controls or b) infected with West Nile Virus via a subcutaneous footpad injection.
+Treatments were supplied ad libitum for 2 weeks prior to viral infection and maintained for 2 weeks post-infection. Primary outcome was mouse survival. Each treatment group had two subgroups of mice that were either a) left uninfected as controls or b) infected with West Nile Virus via a subcutaneous footpad injection.
 
 ## Data organization:
 
-There is no single way to organize your data, but it is good practice to develop a standard for file storage and naming. An well thought out organization structure will make coding your analysis easier, enable you to more easily return to your data after leaving it for a period of time and facilitate publication of your data.
+There is no single way to organize your data, but it is good practice to develop a standard for file storage and naming. A well thought out organizationl structure will make coding, analysis and interpretation easier. It will also enable you to more easily return to your data after leaving it for a period of time and facilitate publication of your data.
 
 The organizational scheme for this workshop is as follow:
 
 General rules for file naming and organization:
 
 1) Special characters and spaces in file or directory names other than _ and - are evil
+2) A defined, standard naming convention is extremely useful. For example, if you have a data object called 16S_analysis.RDS, then it would be helpful to have the same prefix for associated files (e.g. 16S_mapping.txt, 16S_data.RmD, 16S_project.RProj). This is very useful when you are working on more than one project at a time and can provide project specific naming details.
 2) Naming parity is useful. For example, if you have a data object called 16S_analysis.RDS, then it would be helpful to have the same prefix for associated files (e.g. 16S_mapping.txt, 16S_data.Rmd, 16S_project.RProj)
 
 For the purposes of this Workshop we have arranged directories and files as follows:
@@ -53,18 +53,20 @@ For the purposes of this Workshop we have arranged directories and files as foll
 3) Results are in /results/
 4) Figures are in /figures/
 
-## Data and environment initiation
+##Environment inititation
 
 We will begin by customizing our global settings, activating packages and loading our data into R using the following steps:
 
 1) Set global knitr options
-2) Load libraries
+2) Load libraries (the app store of R)
 3) Set global ggplot2 theme and options
 4) Load data
 
 ### Set global knitr options
 
-Knitr is a standardized library which "knits" together code chunks and converts them to specified format such as HTML or PDF. This is very useful for report generation. The way in which knitr handles chunk formatting and report generation can be specified in a code chunk. There are a number options you can use in this section [read about here](https://yihui.name/knitr/options/).
+Knitr is a standardized library which "knits" together code chunks and converts them to specified format such as HTML or PDF. This is very useful for report generation. The way in which knitr handles chunk formatting and report generation can be specified in a code chunk. 
+
+There are a large number of ways to customize R code chunks. For the knitr and ggplot2 theme settings (below) I have decided to set include=FALSE (e.g. {r global_options, include=FALSE}). This tells knitr to exclude the chunk from the final report. In this case, the chunk will still be evaluated as part of the RMarkdown document. If you wish to prevent the chunk from being executed at all you can set eval=FALSE.There are a number options you can use in this section [read about here](https://yihui.name/knitr/options/).
 
 ```{r global_options, include=FALSE}
 # This chunk defines output figure dimensions,
@@ -77,10 +79,11 @@ knitr::opts_chunk$set(fig.width=8,
                       warning=FALSE,
                       message=FALSE)
 ```
-
 ## Load libraries
 
 ```{r initiate-environment}
+# Each line below will load a R library and print its currently installed version
+# Notes may be displayed as the packages load, but for the most part these can be ignored
 library("tidyverse"); packageVersion("tidyverse")
 library("plyr"); packageVersion("plyr")
 library("phyloseq"); packageVersion("phyloseq")
@@ -94,31 +97,28 @@ library("ggpubr"); packageVersion("ggpubr")
 library("data.table"); packageVersion("data.table")
 
 ```
+## Set global ggplot2 theme and options
 
-## Set global ggplot2 theme and options.
-
-This sets the plotting aesthetics for every ggplot2 for the rest of the document. There are a tremendous number of ways to customize your ggplot2 settings using theme_set. It is best practice to do this at the beginning of the RMarkdown document so that these settings propagate to the entirety of the studies plots.
+This sets the plotting aesthetics for every ggplot2 for the rest of the document. There are a tremendous number of ways to customize your ggplot2 settings using theme_set (see: http://ggplot2.tidyverse.org/reference/theme_get.html). It is best practice to do this at the beginning of the RMarkdown document so that these settings propogated to every plot through the rest of the document.
 
 ```{r global-theme-settings, include=FALSE}
 # Set global theming
-# This theme set will change the ggplot2 defaults to use the b&w settings (removes the default gray background) and sets the devault font to 10pt Helvetica.
-theme_set(theme_bw(base_size = 10,
+# This theme set will change the ggplot2 defaults to use the b&w settings (removes the default gray background) and sets the default font to 12pt Arial
+theme_set(theme_bw(base_size = 12,
                    base_family = "Arial"))
 
 ```
-Of note, there are a number of ways to customize R code chunks. For the knitr and ggplot2 theme settings I have decided to set include=FALSE. This tells knitr to exclude the chunk from the final report. In this case, the chunk will still be evaluated as part of the RMarkdown document. If you wish to prevent the chunk from being executed you can set eval=FALSE.
-
 ## Read in your data
 
-The output from a standard dada2 workflow should be an RDS file. In this case the file is called *ps0.rds* (ps is shorthand for PhyloSeq. The 0 indicates it is the 'base' version of the file. As it is modified this can be changed to ps1, ps2, etc.). You may have already merged your mapping file data (sample variables) with the rds file. However, you will likely add or modify this mapping file as you progress, so it is useful to initiate an import/merge of a mapping file at this stage.
+The output from a standard dada2 workflow will be an RDS file. In this case the file is called *ps0.rds* (ps is shorthand for PhyloSeq. The 0 indicates it is the 'base' version of the file. As it is modified this can be changed to ps1, ps2, etc.). You may have already merged your mapping file data (sample variables, aka metadata file) with the rds file. However, in this case the metadata are not associated with the sequence data generated from dada2, so we will merge these files now.
 
 ```{r initiate-data}
 # Read in an RDS file containing taxonomic and count information
-ps0 <- readRDS("../data/16S_data.RDS")
+ps0 <- readRDS("/cloud/project/data/16S_data.RDS")
 ps0
 
 # Read in a mapping file containing sample variable information
-map <- import_qiime_sample_data("../data/16S_mapping.txt")
+map <- import_qiime_sample_data("/cloud/project/data/16S_mapping.txt")
 dim(map)
 
 # Merge the RDS file with the mapping file
@@ -131,10 +131,14 @@ rank_names(ps0) # Taxonomic ranks
 get_taxa_unique(ps0, "Phylum") # Unique phylum names in the file
 
 ```
-
 ## Sample filtering
 
+With multiplexing technology it is normal to sequence large numbers of samples at once. Phyloseq makes easy work of seperating out and subsetting irrelevant from relevant samples.
+
 ```{r sample-filtering}
+# Remove Day -14 cohoused data (coded as D.14)
+# These samples were collected and sequenced, but were obtained prior to mouse co-housing and thus not inlcuded in and of the subsequent analysis
+
 # Remove Day -14 cohoused data
 # These samples were collected and sequenced, but were obtained prior to mouse co-housing and thus not included in subsequent analysis
 levels(sample_data(ps0)$treatment_days)
@@ -152,14 +156,13 @@ ps0 <- prune_taxa(taxa_sums(ps0) > 0, ps0)
 summary(taxa_sums(ps0))
 
 ```
+##Factor reordering and renaming
 
-## Factor reordering and renaming (optional)
-
-The default sorting for ggplot2 is alphabetical. So if you want to make a box plot comparing Shannon diversity between wild-type and knockout mice, it will by default always place knockout on the left and wild-type on the right. However, you may wish to switch this so the knock-out is on the right and wild-type on the left.
+The default sorting for ggplot2 is alphabetical. For example, if you want to make a box plot comparing Shannon diversity between wild-type and knockout mice, it will by default always place knockout on the left and wild-type on the right. However, you may wish to switch this so the knock-out is on the right and wild-type on the left.
 
 This can be done on a plot-by-plot basis, however, it is likely that you will want all of your plots to reflect this customization throughout the entire analysis, so it is useful to have an R chunk at the very beginning of your workflow to specify order and label names.
 
-In the example data, most of the analysis will be done comparing the sample variable "treatment" which is either KoolAid or Ampicillin in the mapping file. Due to default ordering, Ampicillin will always appear before Koolaid. We want the control displayed first (on the left of most plots). We also want to use the more formal "Vehicle" to indicate that a "vehicle control" was used. Koolaid is added to the water to encourage mice to drink the antibiotic laden water. This would be indicated in the methods of a manuscript, but the plots should be more formal and indicate that this was a vehicle control. The code chunk below provides examples for reordering and relabeling sample variable data.
+In the example data, most of the analysis will be done comparing the sample variable "treatment" which is either KoolAid or one of the three antibiotics treatments in the mapping file. Due to default ordering, Ampicillin will always appear before Koolaid. We want the control displayed first (on the left of most plots). We also want to use the more formal "Vehicle" to indicate that a "vehicle control" was used. The code chunk below provides examples for reordering and relabeling sample variable data.
 
 ```{r factor-adjustments}
 # Reorder Treatments
@@ -168,37 +171,33 @@ sample_data(ps0)$treatment <- factor(sample_data(ps0)$treatment, levels = c("Veh
 levels(sample_data(ps0)$treatment)
 
 # Relabel Treatments
+# Note: the subtle change here is alterening "levels" from the above command to "labels"
 sample_data(ps0)$treatment <- factor(sample_data(ps0)$treatment, labels = c("Vehicle","Metro","Amp","Amp + Metro"))
 levels(sample_data(ps0)$treatment)
 
-# Factor re-ordering, relabelling, etc.
 # Reorder Time points
 levels(sample_data(ps0)$treatment_days)
 sample_data(ps0)$treatment_days <- factor(sample_data(ps0)$treatment_days, levels = c("D0", "D3", "D7", "D13", "D16", "D18", "D20"))
 levels(sample_data(ps0)$treatment_days)
 
 ```
+## Data summary and assessment
 
-## ASV summary statistics
+While there are numerous possible ways to evaluate your data, a standard starting approach would consist of the following steps:
 
-Data assessment consists of 2 steps:
-
-1) Evaluate Amplicon Sequence Variants (ASV, formerly referred to as an OTU) summary statistics
+1) Evaluate Amplicon Sequence Variants (ASV) summary statistics
 2) Detect and remove outlier samples
+3) Taxon cleaning
+4) Prevalance estimation and filtering
 
-Begin by running the following R chunk to produce several summary plots and basic statistics about the ASV's and samples in your data.
+*Step 1: Evaluate Amplicon Sequence Variants (ASV) summary statistics*
+Begin by running the following R chunk to produce ASV summary plots.
 
 ```{r data-assessment}
 # Create a new data frame of the sorted row sums, a column of sorted values from 1 to the total number of individuals/counts for each ASV and a categorical variable stating these are all ASVs.
-readsumsdf <- data.frame(nreads = sort(taxa_sums(ps0), TRUE), 
+readsumsdf <- data.frame(nreads = sort(taxa_sums(ps0), decreasing = TRUE), 
                         sorted = 1:ntaxa(ps0),
                         type = "ASVs")
-
-# Add a column of sample sums (total number of individuals per sample)
-readsumsdf <- rbind(readsumsdf,
-                   data.frame(nreads = sort(sample_sums(ps0), TRUE),
-                              sorted = 1:nsamples(ps0),
-                              type = "Samples"))
 
 # Make a data frame with a column for the read counts of each sample for histogram production
 sample_sum_df <- data.frame(sum = sample_sums(ps0))
@@ -227,13 +226,16 @@ grid.arrange(p.reads, p.reads.hist, ncol = 2)
 summary(sample_sums(ps0))
 
 ```
-The above data assessment is useful for getting an idea of 1) the overall taxonomic distribution of your reads (left plot). This will normally be a "long tail" with some taxa being highly abundant in the data tapering off to taxa with very few reads, 2) probably more valuable than the first plot is how many reads are in each sample (middle plot). Very low read count can be indicative of a failed reaction and 3) a histogram of the number of samples at various "bins" of read depth. Each of these plots will help give an understanding of how your data are structured across taxa and samples and will vary depending on the nature of your samples.
+The above data assessment is useful for getting an idea of 1) the number of sequences per taxa (left plot). This will normally be a "long tail" with some taxa being highly abundant in the data tapering off to taxa with very few reads, 2) the number of reads per sample. Note the spike at the lowest number of reads due to samples taken from mice given antibiotics. Very low read count can be indicative of a failed reaction. Both of these plots will help give an understanding of how your data are structured across taxa and samples and will vary depending on the nature of your samples.
 
-Samples with unexpectedly low number of sequences can be safely removed. This is an intuitive process and should be instructed by your understanding of the samples in your study. For example, if you have 5 samples from stool samples, one would expect to obtain thousands, if not several thousands of RSVs. This may not be the case for other tissues, such as spinal fluid or tissue samples. Similarly, you would not expect thousands of RSV from samples obtained from antibiotic treated organisms. Following antibiotic treatment you may be left with dozens or hundreds of RSVs. So contextual awareness about the biology of your system should guide your decision to remove samples based on RSV number. The basic idea is to remove samples with "unexpected" numbers of RSV.
+Samples with unexpectedly low number of sequences can be considered for removal. This is an intuitive process and should be instructed by your understanding of the samples in your study. For example, if you have 5 samples from stool samples, one would expect to obtain thousands, if not several thousands of ASV. This may not be the case for other tissues, such as spinal fluid or tissue samples. Similarly, you may not expect thousands of ASV from samples obtained from antibiotic treated organisms. Following antibiotic treatment you may be left with only dozens or hundreds of ASV. So contextual awareness about the biology of your system should guide your decision to remove samples based on ASV number.
 
 Importantly, at each stage you should document and justify your decisions. If you are concerned that sample removal will alter the interpretation of your results, you should run your analysis on the full data and the data with the sample(s) removed to see how the decision affects your interpretation.
 
-The above plots provide overall summaries about the number of RSVs found in all of your samples. However, they are not very useful for identifying and removing specific samples. This can be done using the following R chunk.
+The above plots provide overall summaries about the number of ASV found in all of your samples. However, they are not very useful for identifying and removing specific samples. One way to do this is using code from the following R chunk.
+
+*Step 2: Detect and remove outlier samples*
+Detecting and potentially removing samples outliers (those samples with underlying data that do not conform to experimental or biological expectations) can be useful for minimizing technical variance. One way to identify sample outliers is shown in the R chunk below.
 
 ```{r sample-removal-identification}
 # Format a data table to combine sample summary data with sample variable data
@@ -244,10 +246,9 @@ ss.df <- merge(sd, data.frame("ASV" = ss), by ="row.names")
 # Plot the data by the treatment variable
 y = 1000 # Set a threshold for the minimum number of acceptable reads. Can start as a guess
 x = "treatment_days" # Set the x-axis variable you want to examine
-label = "sample" # This is the label you want to overlay on the points that are below threshold y. Should be something sample specific
+label = "sample" # This is the label you want to overlay on the points
 
 p.ss.boxplot <- ggplot(ss.df, aes_string(x, y = "ASV", color = "treatment")) + 
-  stat_boxplot(geom = "errorbar", position = position_dodge(width = 0.8)) +
   geom_boxplot(outlier.colour="NA", position = position_dodge(width = 0.8)) +
   geom_jitter(size = 2, alpha = 0.6) +
   scale_y_log10() +
@@ -256,10 +257,12 @@ p.ss.boxplot <- ggplot(ss.df, aes_string(x, y = "ASV", color = "treatment")) +
   geom_text(aes_string(label = label), size = 3, nudge_y = 0.05, nudge_x = 0.05)
 p.ss.boxplot
 
+# It is easy to export (write) data from R to a simple text file
+# If you wated a text file of the above sequence summary results you can write ss.df as follows:
 write.table(ss.df, file = "../results/asv_stats.txt", sep = "\t")
 
 ```
-The example data does have a couple of samples with fewer than 1,000 ASVs. However, these come from samples obtained from antibiotic treated mice, so this fits our expectation. There are a 7 samples in the Amp + Metro treated mice at the later time points that seem to be performing differently (very low numbers of ASV) in comparison to the majority of samples. When questionable samples arise you should take note of them so if there are samples which behave oddly in downstream analysis you can recall this information and perhaps justify their removal. In this case lets remove them. 
+The example data does have several samples with fewer than 1,000 ASV in the amp or amp+metro treatment groups. There are a 10 samples in the Amp + Metro treated mice at the later time points that seem to be performing differently (fewer than 1,000 ASV) in comparison to the majority of the other samples within this treatment group. When questionable samples arise you should take note of them so if there are samples which behave oddly in downstream analysis you can recall this information and perhaps justify their removal. In this case lets remove them for practice. 
 
 ```{r sample-outlier-removal}
 nsamples(ps0)
@@ -279,21 +282,17 @@ ps1 <- ps0 %>%
 nsamples(ps1)
 
 ```
+Note that we created a new phyloseq object called ps1. This preserves all of the data in the original ps0 and creates a new data object with the offending samples removed called ps1.
 
-## Overall sample relationship to evaluate sample outliers
+Failure to detect and remove "bad" samples can make interpreting ordinations much more challenging as they typically project as "outliers" severely skewing the rest of the samples. These samples also increase variance and will impede your ability to identify differentially abundant taxa between groups. Thus sample outlier removal should be a serious and thoughtful part of every analysis in order to obtain optimal results.
 
-Note that we created a new phyloseq object called ps1. This preserves all of the data in the original ps0 and creates a new data object with the offending sample(s) removed called ps1.
-
-Failure to detect and remove "bad" samples can make interpreting ordinations much more challenging as they typically project as "outliers" severely skewing the rest of the samples. These samples also increase variance and will impede your ability to identify differentially abundant taxa between groups. So sample outlier removal should be a serious and thoughtful part of every analysis in order to obtain optimal results.
-
-## Taxon prevalence estimations and filtering
-
-Low abundant taxa typically do not contribute to ecological community evaluation or differential abundance testing. There are of course caveats to this statement (i.e. low-abundance pathogen detection), but many analysis can benefit from the removal of uninformative (low prevalence) taxa. Removal of low prevalence taxa greatly assist in tests penalized with a false-discovery-rate (FDR) calculation. Similar to outlier sample removal, low prevalent taxa removal should be justified and documented. The following R chunk provides several evaluations and plots to assist with this decision.
-
-## Taxon cleaning 
+*Step 3: Taxon cleaning*
+The following R chunk removes taxa not-typically part of a bacterial microbiome analysis.
 
 ```{r taxon-cleaning}
-# Begin by removing sequences that were not classified as Bacteria or were classified as either mitochondria or chloroplast
+# Some examples of taxa you may not want to include in your analysis
+get_taxa_unique(ps1, "Kingdom")
+get_taxa_unique(ps1, "Class")
 
 ps1 # Check the number of taxa prior to removal
 ps2 <- ps1 %>%
@@ -304,18 +303,115 @@ ps2 <- ps1 %>%
     Phylum != "Cyanobacteria/Chloroplast"
   )
 ps2 # Confirm that the taxa were removed
+get_taxa_unique(ps2, "Kingdom")
+get_taxa_unique(ps2, "Class")
 
 ```
 
+## Prevalance assessment
+
+Identification of taxa that are poorly represented in an unsupervised manner can identify taxa that will have little to no effect on downstream analysis. Sufficient removal of these "low prevalance" features can enhance many analysis by focusing statistical testing on taxa common throughout the data.
+
+This approach is frequently poorly documented or justified in methods sections of manuscripts, but will typically read something like, "Taxa present in fewer than 3% of all of the samples within the study population and less than 5% relative abundance were removed from all subsequent analysis.".
+
+While the ultimate selection criteria can still be subjective, the following plots can be useful for making your selection criteria.
+
+```{r prevalence-assessment}
+# Prevalence estimation
+# Calculate feature prevalence across the data set
+prevdf <- apply(X = otu_table(ps2),MARGIN = ifelse(taxa_are_rows(ps2), yes = 1, no = 2),FUN = function(x){sum(x > 0)})
+
+# Add taxonomy and total read counts to prevdf
+prevdf <- data.frame(Prevalence = prevdf, TotalAbundance = taxa_sums(ps2), tax_table(ps2))
+
+#Prevalence plot
+prevdf1 <- subset(prevdf, Phylum %in% get_taxa_unique(ps0, "Phylum"))
+p.prevdf1 <- ggplot(prevdf1, aes(TotalAbundance, Prevalence / nsamples(ps2),color=Family)) +
+  geom_hline(yintercept = 0.05, alpha = 0.5, linetype = 2) +
+  geom_point(size = 3, alpha = 0.7) +
+  scale_x_log10() +
+  xlab("Total Abundance") + ylab("Prevalence [Frac. Samples]") +
+  facet_wrap(~Phylum) +
+  theme(legend.position="none") +
+  ggtitle("Phylum Prevalence in All Samples\nColored by Family")
+p.prevdf1
+
+```
+This code will produce a plot of all of the Phyla present in your samples along with information about their prevelance (fraction of samples they are present in) and total abundance across all samples. In this example we drew a dashed horizontal line to cross at the 5% prevalance level (present in > 5% of all of the samples in the study). If you set a threshold to remove taxa below that level you can visually see how many and what types of taxa will be removed. Whatever, threshold you choose to use it should be well documented within your materials and methods.
+
+An example on how to filter low prevelant taxa is below.
+
+```{r prevelance-filtering}
+# Remove specific taxa
+# Define a list with taxa to remove
+filterPhyla = c("Fusobacteria", "Tenericutes")
+filterPhyla
+
+get_taxa_unique(ps2, "Phylum")
+ps2.prev <- subset_taxa(ps2, !Phylum %in% filterPhyla) 
+get_taxa_unique(ps2.prev, "Phylum")
+
+# Removing taxa that fall below 5% prevelance
+# Define the prevalence threshold
+prevalenceThreshold = 0.05 * nsamples(ps2)
+prevalenceThreshold
+
+# Define which taxa fall within the prevalence threshold
+keepTaxa <- rownames(prevdf1)[(prevdf1$Prevalence >= prevalenceThreshold)]
+ntaxa(ps2)
+# Remove those taxa
+ps2.prev <- prune_taxa(keepTaxa, ps2)
+ntaxa(ps2.prev)
+
+```
+## Data transformation
+
+Many analysis in community ecology and hypothesis testing benefit from data transformation. Many microbiome data sets do not fit to a normal distribution, but transforming them towards normality may enable more appropriate data for specific statistical tests. The choice of transformation is not straight forward. There is literature on how frequently used transformations affect certain analysis, but every data set may require different considerations. Therefore, it is recommended that you examine the effects of several transformations on your data and explore how they alter your results and interpretation.
+
+The R chunk below implements several commonly used transformations in microbiome research and plots their results. Similar to outlier removal and prevalence filtering, your choice should be justified, tested and documented.
+
+```{r data-transform}
+# Transform to Relative abundances
+ps2.ra <- transform_sample_counts(ps2, function(OTU) OTU/sum(OTU))
+
+# Transform to Proportional Abundance
+ps2.prop <- transform_sample_counts(ps2, function(x) min(sample_sums(ps2)) * x/sum(x))
+
+# Log transformation moves to a more normal distribution
+ps2.log <- transform_sample_counts(ps2, function(x) log(1 + x))
+
+# View how each function altered count data
+par(mfrow=c(1,4))
+plot(sort(sample_sums(ps2), TRUE), type = "o", main = "Native", ylab = "RSVs", xlab = "Samples")
+plot(sort(sample_sums(ps2.log), TRUE), type = "o", main = "log Transformed", ylab = "RSVs", xlab = "Samples")
+plot(sort(sample_sums(ps2.ra), TRUE), type = "o", main = "Relative Abundance", ylab = "RSVs", xlab = "Samples")
+plot(sort(sample_sums(ps2.prop), TRUE), type = "o", main = "Proportional Abundance", ylab = "RSVs", xlab = "Samples")
+par(mfrow=c(1,4))
+
+# Histograms of the non-transformed data vs. the transformed data can address the shift to normality
+p.nolog <- qplot(rowSums(otu_table(ps2))) + ggtitle("Raw Counts") +
+  theme_bw() +
+  xlab("Row Sum") +
+  ylab("# of Samples")
+
+p.log <- qplot(log10(rowSums(otu_table(ps2)))) +
+  ggtitle("log10 transformed counts") +
+  theme_bw() +
+  xlab("Row Sum") +
+  ylab("# of Samples")
+
+ggarrange(p.nolog, p.log, ncol = 2, labels = c("A)", "B)"))
+
+```
 ## Subsetting
 
-You will frequently find that you want to analyze a subset of your total data set. There are typically commands that will allow you to do this for each individual analysis, but similar to variable reordering it can sometime be more convenient to do this towards the beginning of your analysis. This should be done after removal of outlier samples and taxa. If you wish to create transformed versions of each subset you can either subset the transformed data you just generated, or alternatively retransform your subsetted data. The R chunk below is an example subsetting of the example data by treatment.
+You will frequently find that you want to analyze a subset of your total data set. There are typically commands that will allow you to do this for each individual analysis, but similar to variable reordering it can sometimes be more convenient to do this towards the beginning of your analysis. This should be done after removal of outlier samples and taxa. If you wish to create transformed versions of each subset you can either subset the transformed data you just generated, or alternatively retransform your subsetted data. The R chunk below is an example subsetting of the example data by treatment.
 
 Subsetting away samples can create a situation where taxa are present as empty rows. This is because not every sample has every taxa. These can be removed as shown in the R chunk below.
 
 Creating individual subsets like this can be particularly useful when assessing differential abundance using DESeq2.
 
-```{r subsetting, include=FALSE}
+```{r subsetting}
 #Subsets
 # All samples
 ntaxa(ps2)
@@ -351,11 +447,12 @@ ps2.ampmetro <- prune_taxa(taxa_sums(ps2.ampmetro) > 0, ps2.ampmetro)
 any(taxa_sums(ps2.ampmetro) == 0) # It should now be false
 
 ```
-
 ## Community composition plotting
 
+Classic barplots of bacterial phyla present per sample can be useful for communicating "high level" results. These are relatively easy to interpert when major shifts in microbial communities are present, such as in this study where antibiotics are used However, they are not effective at detecting subtle shifts in communities or taxa and do not convey any statistical significance and can be subjectively interperted. Interpretation of these plots should always be subject to subsequent statistical analysis.
+
 ```{r community-composition-plots}
-# Create a data table for ggploting
+# Create a data table for ggplot
 ps2_phylum <- ps2 %>%
   tax_glom(taxrank = "Phylum") %>%                     # agglomerate at phylum level
   transform_sample_counts(function(x) {x/sum(x)} ) %>% # Transform to rel. abundance (or use ps0.ra)
@@ -371,112 +468,20 @@ p.ra.phylum <- ggplot(ps2_phylum, aes(x = sample_id, y = Abundance, fill = Phylu
   labs(title = "Abundant Phylum (> 1%)")
 p.ra.phylum
 
-# Note: This is a nice place to output tables of data that you may want to use for other analysis, or to include as supplemental data for publication
-# You can rerun the first bit of code in this chunk and change Phylum to Species for a table with all possible classifications
-write.table(ps2_phylum, file = "../results/phylum_relab.txt", sep = "\t")
+# You can rerun the first bit of code in this chunk and change Phylum to Species, Genus, etc.
 
 # Draw in interactive plotly plot
 ggplotly(p.ra.phylum)
 
 ```
-
-```{r prevalence-assessment}
-# Prevalence estimation
-# Calculate feature prevalence across the data set
-prevdf <- apply(X = otu_table(ps2),MARGIN = ifelse(taxa_are_rows(ps2), yes = 1, no = 2),FUN = function(x){sum(x > 0)})
-
-# Add taxonomy and total read counts to prevdf
-prevdf <- data.frame(Prevalence = prevdf, TotalAbundance = taxa_sums(ps2), tax_table(ps2))
-
-# Create a table of Phylum, their mean abundances across all samples, and the number of samples they were detected in
-plyr::ddply(prevdf, "Phylum", function(df1){cbind(mean(df1$Prevalence),sum(df1$Prevalence))})
-
-#Prevalence plot
-prevdf1 <- subset(prevdf, Phylum %in% get_taxa_unique(ps0, "Phylum"))
-p.prevdf1 <- ggplot(prevdf1, aes(TotalAbundance, Prevalence / nsamples(ps2),color=Family)) +
-  geom_hline(yintercept = 0.05, alpha = 0.5, linetype = 2) +
-  geom_point(size = 3, alpha = 0.7) +
-  scale_x_log10() +
-  xlab("Total Abundance") + ylab("Prevalence [Frac. Samples]") +
-  facet_wrap(~Phylum) +
-  theme(legend.position="none") +
-  ggtitle("Phylum Prevalence in All Samples\nColored by Family")
-p.prevdf1
-
-```
-This code will produce a table and a plot of all of the Phyla present in your samples along with information about their prevalence (fraction of samples they are present in) and total abundance across all samples. 
-
-...ADD ADDITIONAL EXPLANATION AND STRATEGY HERE...
-
-Example on how to filter low prevalent taxa below. Not used for the original analysis though, need to consider to include or not and update example below.
-
-```{r prevalence-filtering-example, eval=FALSE, include=FALSE}
-# Remove specific taxa
-# Define a variable with taxa to remove
-filterPhyla = c("Fusobacteria", "Tenericutes")
-filterPhyla
-
-get_taxa_unique(ps2, "Phylum") # Check the number of taxa prior to removal
-ps2.prev <- subset_taxa(ps2, !Phylum %in% filterPhyla) 
-get_taxa_unique(ps2.prev, "Phylum") # Confirm the taxa were removed
-
-# Removing taxa that fall below 5% prevelance
-# Define the prevalence threshold
-prevalenceThreshold = 0.05 * nsamples(ps2)
-prevalenceThreshold
-
-# Define which taxa fall within the prevalence threshold
-keepTaxa <- rownames(prevdf1)[(prevdf1$Prevalence >= prevalenceThreshold)]
-ntaxa(ps2) # Check the number of taxa prior to removal
-ps2.prev <- prune_taxa(keepTaxa, ps2)
-ntaxa(ps2.prev) # Confirm the taxa were removed
-
-```
-
-## Data transformation
-
-Many analysis in community ecology and hypothesis testing benefit from data transformation. Many microbiome data sets do not fit to a normal distribution, but transforming them towards normality may enable more appropriate data for specific statistical tests. The choice of transformation is not straight forward. There is literature on how frequently used transformations affect certain analysis, but every data set may require different considerations. Therefore, it is recommended that you examine the effects of several transformations on your data and explore how they alter your results and interpretation.
-
-The R chunk below implements several commonly used transformations in microbiome research and plots their results. Similar to outlier removal and prevalence filtering, your choice should be justified, tested and documented.
-
-```{r data-transform, include=FALSE}
-# Transform to Relative abundances
-ps2.ra <- transform_sample_counts(ps2, function(OTU) OTU/sum(OTU))
-
-# Transform to Proportional Abundance
-ps2.prop <- transform_sample_counts(ps2, function(x) min(sample_sums(ps2)) * x/sum(x))
-
-# Log transformation moves to a more normal distribution
-ps2.log <- transform_sample_counts(ps2, function(x) log(1 + x))
-
-# View how each function altered count data
-par(mfrow=c(1,4))
-plot(sort(sample_sums(ps2), TRUE), type = "o", main = "Native", ylab = "RSVs", xlab = "Samples")
-plot(sort(sample_sums(ps2.log), TRUE), type = "o", main = "log Transformed", ylab = "RSVs", xlab = "Samples")
-plot(sort(sample_sums(ps2.ra), TRUE), type = "o", main = "Relative Abundance", ylab = "RSVs", xlab = "Samples")
-plot(sort(sample_sums(ps2.prop), TRUE), type = "o", main = "Proportional Abundance", ylab = "RSVs", xlab = "Samples")
-par(mfrow=c(1,4))
-
-# Histograms of the non-transformed data vs. the transformed data can address the shift to normality
-p.nolog <- qplot(rowSums(otu_table(ps2))) + ggtitle("Raw Counts") +
-  theme_bw() +
-  xlab("Row Sum") +
-  ylab("# of Samples")
-
-p.log <- qplot(log10(rowSums(otu_table(ps2)))) +
-  ggtitle("log10 transformed counts") +
-  theme_bw() +
-  xlab("Row Sum") +
-  ylab("# of Samples")
-
-ggarrange(p.nolog, p.log, ncol = 2, labels = c("A)", "B)"))
-
-```
-
 ## Phyla level plots
 
+Data with strong effects can be assessed with a variety of high-level plots. While these plots do not reveal low-level detail about bacterial species, they can provide a visual assessment of how bacterial community structure is behaving within your experimental system. As another example on how one might display the time-series data collected as part of this study one can use line plots to examine the trajectories of each major taxa following each treatment.
+
+In order to display these plots, some work needs to be done to convert the data from a phyloseq object into a data table useful for non-phloyseq specific ggplot aesthetics. This first chunk takes care of a majority of this preparatory work.
+
 ```{r phyla-level-plots-preparation}
-# agglomerate taxa
+# agglomerate taxa to a specific taxanomic level
 glom <- tax_glom(ps2.ra, taxrank = 'Phylum')
 
 # create dataframe from phyloseq object
@@ -487,22 +492,17 @@ levels(dat$Phylum)
 dat$Phylum <- factor(dat$Phylum, levels = c("Bacteroidetes", "Firmicutes", "Proteobacteria", "Tenericutes", "Actinobacteria", "Verrucomicrobia"))
 levels(dat$Phylum)
 
-# Reduced to most abundant phylum
-dat %>%
-  group_by(Phylum) %>%
-  summarise(Mean = mean(Abundance)) %>%
-  arrange(desc(Mean))
-
-# Select 4 most abundant Phyla
+# Select 4 most abundant Phyla for a reduced plot
 dat.1 <- filter(dat, Phylum %in% c("Bacteroidetes", "Firmicutes", "Proteobacteria", "Verrucomicrobia"))
 levels(dat.1$Phylum)
 dat.1 <- droplevels(dat.1)
 levels(dat.1$Phylum)
 
 ```
+And now for the actual plot of the prepared data.
 
 ```{r phyla-level-plotting}
-# Phyla plots with GAM smoother 
+# Phyla plots with loess smoother 
 p.gam.phylum <- ggplot(dat.1, aes(x = treatment_days, y = Abundance, color = Phylum, group = Phylum)) +
   stat_smooth(method = "loess") +
   facet_grid(~treatment) +
@@ -511,10 +511,13 @@ p.gam.phylum <- ggplot(dat.1, aes(x = treatment_days, y = Abundance, color = Phy
 p.gam.phylum
 
 ```
-
 ## Alpha diversity plotting
 
-```{r alpha-diverstiy-GAM-plots}
+Alpha diversity is a standard tool researchers can use to calcuate the number of bacterial taxa present in a study or study group and the relationships between relative abundance and how evenly taxa are distributed. These are classic representations of species number and diversity in a study which provide useful summary information about the numbers and relative abundances of bacterial taxa within your study.
+
+Similar to the plot above, we can calculate several measures of alpha diversity, add them to a data frame and use ggplot2 to follow the alpha diversity trajectory over time.
+
+```{r alpha-diverstiy-plots}
 alpha.div <- estimate_richness(ps2, measures = c("Observed", "Shannon"))
 sd.1 <- as.data.frame(sample_data(ps2)) # Can not use original sd as samples have been removed
 ps2.rich <- cbind(sd.1, alpha.div) # Bind alpha diversity columns to sample data
@@ -522,22 +525,28 @@ ps2.rich <- cbind(sd.1, alpha.div) # Bind alpha diversity columns to sample data
 # Richness
 p.rich <- ggplot(ps2.rich, aes(x = treatment_days, y = Observed, color = treatment, group = treatment)) +
   stat_smooth(method = "loess") +
-  labs(y = "Richness", color = "Treatment") +
+  labs(y = "Richness", color = "Treatment", x = "") +
   geom_jitter(size = 2, alpha = 0.5, width = 0.2) +
   scale_color_manual(values = c("black", "chocolate", "green", "purple"))
 
 # Shannon diversity
 p.sd <- ggplot(ps2.rich, aes(x = treatment_days, y = Observed, color = treatment, group = treatment)) +
   stat_smooth(method = "loess") +
-  labs(y = "Richness", color = "Treatment") +
+  labs(y = "Richness", color = "Treatment", x = "") +
   geom_jitter(size = 2, alpha = 0.5, width = 0.2) +
   scale_color_manual(values = c("black", "chocolate", "green", "purple"))
 
+# Note: ggarrange enalbes you to directly add labels to plot grids
 ggarrange(p.rich, p.sd, ncol = 2, labels = c("A)", "B)"))
 
 ```
-
 ## Ordination
+
+Beta diversity enables you to view overall relationships between samples. These relationships are calculated using a distance metric calcuation (of which there are many) and these multi-dimensional relationships are evaluated and viewed in the two dimensions which explain the majority of their variance. Additioanl dimensions can be explored to evaluate how samples are related to one another.
+
+The UniFrac distance metric takes advantage of the phylogenetic relationships between bacterial taxa by down-weighting relationships between bacterial taxa that are phylogenetically related versus ones that are distantly related. Weighted UniFrac builds on this by also taking into account the relative abundances of each taxa. For a more detailed discussion on these distance calcuations see: https://en.wikipedia.org/wiki/UniFrac. Ultimately, the decision on what distance metric to use should be a result of experimintation and a good understanding of the underlying properties of your data.
+
+The following R chunks calcuate UniFrac and wUniFrac on a phyloseq object and display the the two components of these results that explain a majority of the variance in the data using Principle Coordinates Analysis (PCoA). For a detailed explanation of how PCoA works see: https://sites.google.com/site/mb3gustame/dissimilarity-based-methods/principal-coordinates-analysis.
 
 ```{r ordination}
 #Ordination Analysis
@@ -545,8 +554,7 @@ ord.pcoa.uni <- ordinate(ps2, method = "PCoA", distance = "unifrac")
 ord.pcoa.wuni <- ordinate(ps2, method = "PCoA", distance = "wunifrac")
 
 ```
-
-## Beta diversity ordination plots ~ SurvivalStatus
+And now to plot each ordination.
 
 ```{r ordination-plots}
 ## Ordination plots all samples
@@ -586,21 +594,36 @@ doadonis <- function(physeq, category) {
   print("Adonis results:")
   print(adonis.bdist)
   
-  # Homogeneity of dispersion test
-  betatax = betadisper(bdist,col)
-  p = permutest(betatax)
-  print("Betadisper results:")
-  print(p$tab)
 }
 
+# Trivial example as it considers all samples at all time point
 doadonis(ps2, "treatment")
 
-```
+# Let's subset only the day 20 data and recalculate
+ps2.day.20 <- subset_samples(ps2, treatment_days == "D20")
+doadonis(ps2.day.20, "treatment")
 
-## **1) LRT: VEHICLE ~ METRO**
+```
+## Differential abundance testing
+
+There are a number of ways to detect bacterial taxa (more accuratley, ASVs) differentially abundant between one or more groups or along an environmental gradient (e.g. random forest, LEfSe, ANCOM, many others)
+
+Links to other methods to detect differentially abundant taxa:
+
+Random Forest in R example: https://rpubs.com/michberr/randomforestmicrobe
+LEfSe: https://bitbucket.org/biobakery/biobakery/wiki/lefse
+ANCOM: https://www.ncbi.nlm.nih.gov/pubmed/26028277
+
+DESeq2 provides a powerful statistical model for evaluating count tables generated with sequence data. The DESEq2 library normalizes count data and performs model-based calculations to determine features (in the case of microbiome data, ASVs) that are assocaited with one state or another.
+
+A full description of how DESeq2 works is out-of-the-scope of this workshop, but we encourage you to read the official DESeq2 manual as well as complete the well-developed vignettes available through Bioconductor: http://bioconductor.org/packages/devel/bioc/vignettes/DESeq2/inst/doc/DESeq2.html. Of note, DESeq2 is tradiationally applied to RNA-seq count data, but the principles still apply to 16S amplicon data. 
+
+Since the example data set collected time-series data we can take advantage of the likelihood ration test (LRT) model of DESeq2. The LRT will identify ASV differentially abundant between groups at one or more time point.
+
+The chunk below will determine all taxa differentially abundant between Amp or Amp + Metro at at least one time point.
 
 ```{r differential-abundance-testing-vehicle-vs-metro-LRT}
-# Subset infected Vehicle and Metro samples for the full treatment period
+# Subset Metro and Amp + Metro samples
 sample_data(ps2)$treatment
 ps2.vehicle_metro <- ps2 %>%
   subset_samples(
