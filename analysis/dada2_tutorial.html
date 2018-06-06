@@ -121,7 +121,7 @@ filtRs &lt;-<span class="st"> </span><span class="kw">file.path</span>(path, <sp
 <p>The critical parameters we chose are the truncation lengths of <strong>240</strong> (forward) and <strong>170</strong> (reverse). <em>Why did we choose these values?</em></p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">out &lt;-<span class="st"> </span><span class="kw">filterAndTrim</span>(fnFs, filtFs, fnRs, filtRs, 
                      <span class="dt">truncLen=</span><span class="kw">c</span>(<span class="dv">240</span>,<span class="dv">160</span>), <span class="dt">maxEE=</span><span class="kw">c</span>(<span class="dv">2</span>,<span class="dv">2</span>), <span class="co"># maxEE=2 is the default</span>
-                     <span class="dt">compress=</span><span class="ot">TRUE</span>, <span class="dt">multithread=</span><span class="dv">2</span>) <span class="co"># Set multithread=TRUE for all cores</span>
+                     <span class="dt">compress=</span><span class="ot">TRUE</span>, <span class="dt">multithread=</span><span class="ot">FALSE</span>) <span class="co"># Set multithread=TRUE to use all cores</span>
 <span class="kw">head</span>(out)</code></pre></div>
 <pre><code>##                        reads.in reads.out
 ## 806rcbc288_R1.fastq.gz     4497      4047
@@ -225,7 +225,7 @@ derepRs &lt;-<span class="st"> </span><span class="kw">derepFastq</span>(filtRs)
 <div id="sample-inference" class="slide section level2">
 <h2>Sample Inference</h2>
 <p>We are now ready to apply <a href="https://www.nature.com/articles/nmeth.3869#methods">the core sample inference algorithm</a> to the dereplicated data.</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dadaFs &lt;-<span class="st"> </span><span class="kw">dada</span>(derepFs, <span class="dt">err=</span>errF, <span class="dt">multithread=</span><span class="dv">2</span>)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dadaFs &lt;-<span class="st"> </span><span class="kw">dada</span>(derepFs, <span class="dt">err=</span>errF, <span class="dt">multithread=</span><span class="dv">2</span>) <span class="co"># Set multithread=TRUE to use all cores</span></code></pre></div>
 <pre><code>## Sample 1 - 4047 reads in 1248 unique sequences.
 ## Sample 2 - 4638 reads in 1602 unique sequences.
 ## Sample 3 - 4473 reads in 1621 unique sequences.
@@ -299,6 +299,7 @@ derepRs &lt;-<span class="st"> </span><span class="kw">derepFastq</span>(filtRs)
 <h2>Remove chimeras</h2>
 <p>Chimeric sequences are identified if they can be exactly reconstructed by combining a left-segment and a right-segment from two more abundant “parent” sequences.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">seqtab.nochim &lt;-<span class="st"> </span><span class="kw">removeBimeraDenovo</span>(seqtab, <span class="dt">method=</span><span class="st">&quot;consensus&quot;</span>, <span class="dt">multithread=</span><span class="dv">2</span>, <span class="dt">verbose=</span><span class="ot">TRUE</span>)
+<span class="co"># Set multithread=TRUE to use all cores</span>
 <span class="kw">sum</span>(seqtab.nochim)<span class="op">/</span><span class="kw">sum</span>(seqtab)</code></pre></div>
 <pre><code>## [1] 0.9274901</code></pre>
 <p><strong>In some cases, most sequences will be chimric. But most reads should not be.</strong></p>
@@ -338,7 +339,9 @@ track &lt;-<span class="st"> </span><span class="kw">cbind</span>(out, <span cla
 <div id="assign-taxonomy" class="slide section level2">
 <h2>Assign Taxonomy</h2>
 <p>The <code>assignTaxonomy</code> function takes as input a set of sequences to ba classified, and a training set of reference sequences with known taxonomy, and outputs taxonomic assignments with at least <code>minBoot</code> bootstrap confidence.</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">taxa &lt;-<span class="st"> </span><span class="kw">assignTaxonomy</span>(seqtab.nochim, <span class="st">&quot;~/tax/silva_nr_v128_train_set.fa.gz&quot;</span>, <span class="dt">multithread=</span><span class="dv">2</span>)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">### taxa &lt;- assignTaxonomy(seqtab.nochim, &quot;../data/rdp_train_set_16.fa.gz&quot;, multithread=2)
+### Commented out for cloud-friendliness
+taxa &lt;-<span class="st"> </span><span class="kw">readRDS</span>(<span class="kw">file.path</span>(path, <span class="st">&quot;..&quot;</span>, <span class="st">&quot;taxa.rds&quot;</span>))</code></pre></div>
 <p><strong>I recommend <a href="file:///Users/bcallah/dada2/training.html">the Silva database</a>. We are using the RDP database here to keep file sizes down.</strong></p>
 </div>
 <div id="sanity-check-taxonomic-assignments" class="slide section level2">
@@ -351,13 +354,13 @@ track &lt;-<span class="st"> </span><span class="kw">cbind</span>(out, <span cla
 ## [4,] &quot;Bacteria&quot; &quot;Verrucomicrobia&quot; &quot;Verrucomicrobiae&quot; &quot;Verrucomicrobiales&quot;
 ## [5,] &quot;Bacteria&quot; &quot;Bacteroidetes&quot;   &quot;Bacteroidia&quot;      &quot;Bacteroidales&quot;     
 ## [6,] &quot;Bacteria&quot; &quot;Firmicutes&quot;      &quot;Clostridia&quot;       &quot;Clostridiales&quot;     
-##      [,5]                        [,6]                           
-## [1,] &quot;Bacteroidales_S24-7_group&quot; NA                             
-## [2,] &quot;Rikenellaceae&quot;             &quot;Alistipes&quot;                    
-## [3,] &quot;Bacteroidales_S24-7_group&quot; NA                             
-## [4,] &quot;Verrucomicrobiaceae&quot;       &quot;Akkermansia&quot;                  
-## [5,] &quot;Bacteroidales_S24-7_group&quot; NA                             
-## [6,] &quot;Lachnospiraceae&quot;           &quot;Lachnospiraceae_NK4A136_group&quot;</code></pre>
+##      [,5]                  [,6]         
+## [1,] &quot;Porphyromonadaceae&quot;  NA           
+## [2,] &quot;Rikenellaceae&quot;       &quot;Alistipes&quot;  
+## [3,] &quot;Porphyromonadaceae&quot;  NA           
+## [4,] &quot;Verrucomicrobiaceae&quot; &quot;Akkermansia&quot;
+## [5,] &quot;Porphyromonadaceae&quot;  NA           
+## [6,] &quot;Lachnospiraceae&quot;     NA</code></pre>
 <p><strong>Do the taxonomies assigned to the top ASVs make sense in the sampled environment?</strong></p>
 </div>
 <div id="handoff-to-phyloseq" class="slide section level2">
