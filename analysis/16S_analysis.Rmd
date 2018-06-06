@@ -84,8 +84,8 @@ knitr::opts_chunk$set(fig.width=8,
 ```{r initiate-environment}
 # Each line below will load a R library and print its currently installed version
 # Notes may be displayed as the packages load, but for the most part these can be ignored
-library("tidyverse"); packageVersion("tidyverse")
 library("plyr"); packageVersion("plyr")
+library("tidyverse"); packageVersion("tidyverse")
 library("phyloseq"); packageVersion("phyloseq")
 library("vegan"); packageVersion("vegan")
 library("gridExtra"); packageVersion("gridExtra")
