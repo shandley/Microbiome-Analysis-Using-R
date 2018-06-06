@@ -227,8 +227,9 @@ head(track)
 The `assignTaxonomy` function takes as input a set of sequences to ba classified, and a training set of reference sequences with known taxonomy, and outputs taxonomic assignments with at least `minBoot` bootstrap confidence. 
 
 ```{r taxify}
-taxa <- assignTaxonomy(seqtab.nochim, "../data/rdp_train_set_16.fa.gz", multithread=2)
-# Set multithread=TRUE to use all cores
+### taxa <- assignTaxonomy(seqtab.nochim, "../data/rdp_train_set_16.fa.gz", multithread=2)
+### Commented out for cloud-friendliness
+taxa <- readRDS(file.path(path, "..", "taxa.rds"))
 ```
 
 **I recommend [the Silva database](file:///Users/bcallah/dada2/training.html). We are using the RDP database here to keep file sizes down.**
