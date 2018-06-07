@@ -83,7 +83,7 @@ The critical parameters we chose are the truncation lengths of **240** (forward)
 ```{r filter, message=FALSE, warning=FALSE}
 out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, 
                      truncLen=c(240,160), maxEE=c(2,2), # maxEE=2 is the default
-                     compress=TRUE, multithread=2) # Set multithread=TRUE for all cores
+                     compress=TRUE, multithread=FALSE) # Set multithread=TRUE to use all cores
 head(out)
 ```
 
@@ -140,7 +140,7 @@ names(derepRs) <- sample.names
 We are now ready to apply [the core sample inference algorithm](https://www.nature.com/articles/nmeth.3869#methods) to the dereplicated data. 
 
 ```{r dada}
-dadaFs <- dada(derepFs, err=errF, multithread=2)
+dadaFs <- dada(derepFs, err=errF, multithread=2) # Set multithread=TRUE to use all cores
 dadaRs <- dada(derepRs, err=errR, multithread=2)
 ```
 
@@ -194,6 +194,7 @@ Chimeric sequences are identified if they can be exactly reconstructed by combin
 
 ```{r chimeras, message=FALSE}
 seqtab.nochim <- removeBimeraDenovo(seqtab, method="consensus", multithread=2, verbose=TRUE)
+# Set multithread=TRUE to use all cores
 sum(seqtab.nochim)/sum(seqtab)
 ```
 
@@ -226,7 +227,9 @@ head(track)
 The `assignTaxonomy` function takes as input a set of sequences to ba classified, and a training set of reference sequences with known taxonomy, and outputs taxonomic assignments with at least `minBoot` bootstrap confidence. 
 
 ```{r taxify}
-taxa <- assignTaxonomy(seqtab.nochim, "~/tax/silva_nr_v128_train_set.fa.gz", multithread=2)
+### taxa <- assignTaxonomy(seqtab.nochim, "../data/rdp_train_set_16.fa.gz", multithread=2)
+### Commented out for cloud-friendliness
+taxa <- readRDS(file.path(path, "..", "taxa.rds"))
 ```
 
 **I recommend [the Silva database](file:///Users/bcallah/dada2/training.html). We are using the RDP database here to keep file sizes down.**
