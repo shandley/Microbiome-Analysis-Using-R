@@ -1,11 +1,19 @@
 # 2018 ASM Workshop *"Microbiome Analysis Using R"*
 *June 7, 2018*
 
+# Thanks to everyone!
+
+Thanks to Joey, Ben and Mike for assisting with the Workshop and thanks to all of the Workshop participants! It was a great working together for the day at ASM. I hope everyone enjoyed the rest of the meeting.
+
+If you are interested in more training, you can view information about several other courses I help run at: http://evomics.org.
+
+Best of luck in all your research endeavors!
+
 # Announcements:
 
-- You will need your own laptop to participate in the hands-on portion of the workshop. While there will be some power distribution throuhgout the classroom, we recommend you fully charge your computer before arrival
+- You will need your own laptop to participate in the hands-on portion of the workshop. While there will be some power distribution throughout the classroom, we recommend you fully charge your computer before arrival
 
-- You do not need to insall anything prior to the Workshop. The course will be run through RStduio Cloud which runs through a web browser on all operating systems (Windows, MacOS, Linux)
+- You do not need to install anything prior to the Workshop. The course will be run through RStduio Cloud which runs through a web browser on all operating systems (Windows, MacOS, Linux)
 
 - Since the hands-on portion will run through a web browser we recommend you connect to the free conference WiFi provided by ASM prior to arriving to the course
 
