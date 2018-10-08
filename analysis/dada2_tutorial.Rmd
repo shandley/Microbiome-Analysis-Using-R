@@ -21,7 +21,7 @@ Adapted from Ben C. Callahan, ASM 2018 Workshop.
 
 Load the `dada2` package. If you don't already it, see the [dada2 installation instructions](dada-installation.html):
 
-```{r libraries}
+```{r load-libraries}
 library(dada2); packageVersion("dada2")
 
 ```
@@ -46,7 +46,7 @@ fnFs[[1]]; fnRs[[1]]
 
 Extract sample names, assuming filenames have format: SAMPLENAME_XXX.fastq.gz:
 
-```{r sample.names}
+```{r sample-names}
 sample.names <- sapply(strsplit(basename(fnFs), "_"), `[`, 1)
 sample.names
 
@@ -122,6 +122,13 @@ The DADA2 algorithm makes use of a parametric error model (`err`) and every ampl
 
 ```{r plot-errors, warning=FALSE}
 plotErrors(errF, nominalQ=TRUE)
+
+```
+
+Check error model estimation convergence. The line should rapidly drop-off near zero and not substantially improve thereafter.
+
+```{r plot-convergence}
+plot(dada2:::checkConvergence(errF))
 
 ```
 
@@ -244,9 +251,9 @@ The `assignTaxonomy` function takes as input a set of sequences to ba classified
 This process can be slow, so we have precomputed this. The command you would actually run is #'d out in the following chunk. Do not run this, but DO run the unhased portion to load the precomputed taxonomic assignment file.
 
 ```{r taxify}
+### Commented out for cloud-friendliness
 ### taxa <- assignTaxonomy(seqtab.nochim, "../data/rdp_train_set_16.fa.gz", multithread=2)
 
-### Commented out for cloud-friendliness
 taxa <- readRDS(file.path(path, "..", "taxa.rds"))
 
 ```
@@ -274,6 +281,7 @@ ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE),
                tax_table(taxa))
 ps
 
+# Some sanity checks
 nsamples(ps)
 get_taxa_unique(ps, "Family")
 
