@@ -1,5 +1,5 @@
 ---
-title: "DADA2 Tutorial: ASM 2018"
+title: "DADA2 Tutorial: Durban 2018"
 output: slidy_presentation
 ---
 
@@ -14,6 +14,8 @@ output: slidy_presentation
 - Samples have been demultiplexed, i.e. split into individual per-sample fastq files.
 - Non-biological nucleotides have been removed, e.g. primers, adapters, linkers, etc.
 - If paired-end sequencing data, the forward and reverse fastq files contain reads in matched order.
+
+**Additional information about demultiplexing can be found on the dada2 website: https://benjjneb.github.io/dada2/index.html
 
 ## Load package and set path
 
