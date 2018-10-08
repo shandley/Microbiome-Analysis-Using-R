@@ -3,16 +3,16 @@ title: "DADA2 Tutorial: Durban 2018"
 output: slidy_presentation
 ---
 
-## Processing marker-gene data with...
+Adapted from Ben C. Callahan, ASM 2018 Workshop.
 
-<center>
-![](media/DADA2_Logo_640.png)
-</center>
+## Processing 16S rRNA marker-gene data with dada2.
 
 **This workflow assumes that your sequencing data meets certain criteria:**
 
 - Samples have been demultiplexed, i.e. split into individual per-sample fastq files.
+
 - Non-biological nucleotides have been removed, e.g. primers, adapters, linkers, etc.
+
 - If paired-end sequencing data, the forward and reverse fastq files contain reads in matched order.
 
 **Additional information about demultiplexing can be found on the dada2 website: https://benjjneb.github.io/dada2/index.html
@@ -20,14 +20,17 @@ output: slidy_presentation
 ## Load package and set path
 
 Load the `dada2` package. If you don't already it, see the [dada2 installation instructions](dada-installation.html):
-```{r libraries, message=FALSE, warning=FALSE}
+
+```{r libraries}
 library(dada2); packageVersion("dada2")
+
 ```
 
 Set the path to the fastq files:
 ```{r path}
-path <- "../data/fastqs"
-head(list.files(path))
+path <- "~/workshop_materials/Microbiome/data/fastqs/"
+list.files(path)
+
 ```
 
 ## Forward, Reverse, Sample Names
@@ -38,21 +41,20 @@ Get matched lists of the forward and reverse fastq.gz files:
 fnFs <- sort(list.files(path, pattern="_R1.fastq.gz", full.names = TRUE))
 fnRs <- sort(list.files(path, pattern="_R2.fastq.gz", full.names = TRUE))
 fnFs[[1]]; fnRs[[1]]
+
 ```
 
-Extract sample names, assuming filenames have format: SAMPLENAME_XXX.fastq.gz
+Extract sample names, assuming filenames have format: SAMPLENAME_XXX.fastq.gz:
+
 ```{r sample.names}
 sample.names <- sapply(strsplit(basename(fnFs), "_"), `[`, 1)
-head(sample.names)
+sample.names
+
 ```
 
 ## Check your amplicon design
 
 We are using the 515F/806R primer set. The primers are not sequenced. The sequencing technology is 2x250 paired end Illumina.
-
-<center>
-![](media/amplicon_schematic.png)
-</center>
 
 **What does this mean for later? Artifacts? Trimming?**
 
@@ -60,6 +62,7 @@ We are using the 515F/806R primer set. The primers are not sequenced. The sequen
 
 ```{r plotqF}
 plotQualityProfile(fnFs[c(1,11)])
+
 ```
 
 **Where to truncate?**
@@ -68,6 +71,7 @@ plotQualityProfile(fnFs[c(1,11)])
 
 ```{r plotqR}
 plotQualityProfile(fnRs[c(2,12)])
+
 ```
 
 **Where to truncate?**
@@ -75,9 +79,11 @@ plotQualityProfile(fnRs[c(2,12)])
 ## Filter and trim
 
 Assign filenames for the filtered fastq.gz in the filtered/ subdirectory.
+
 ```{r filt-names}
 filtFs <- file.path(path, "filtered", paste0(sample.names, "_F_filt.fastq.gz"))
 filtRs <- file.path(path, "filtered", paste0(sample.names, "_R_filt.fastq.gz"))
+
 ```
 
 The critical parameters we chose are the truncation lengths of **240** (forward) and **170** (reverse). *Why did we choose these values?*
@@ -86,13 +92,14 @@ The critical parameters we chose are the truncation lengths of **240** (forward)
 out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, 
                      truncLen=c(240,160), maxEE=c(2,2), # maxEE=2 is the default
                      compress=TRUE, multithread=FALSE) # Set multithread=TRUE to use all cores
-head(out)
+
 ```
 
 ## SANITY CHECK: Filtering Stats
 
 ```{r filter-stats}
 head(out)
+
 ```
 
 - What fraction of reads were kept?
@@ -101,13 +108,12 @@ head(out)
 
 **The truncation lengths are the most likely parameters you might want to revisit.**
 
-Basic strategy: While preserving overlap of 20nts + biological length variation, truncate off quality crashes.
-
 ## Learn the Error Rates
 
 ```{r learn-errors}
-errF <- learnErrors(filtFs, multithread=2) # Set multithread=TRUE to use all cores
-errR <- learnErrors(filtRs, multithread=2)
+errF <- learnErrors(filtFs, multithread=1) # Set multithread=TRUE to use all cores
+errR <- learnErrors(filtRs, multithread=1)
+
 ```
 
 The DADA2 algorithm makes use of a parametric error model (`err`) and every amplicon dataset has a different set of error rates. The `learnErrors` method learns this error model from the data, by alternating estimation of the error rates and inference of sample composition until they converge on a jointly consistent solution.
@@ -116,6 +122,7 @@ The DADA2 algorithm makes use of a parametric error model (`err`) and every ampl
 
 ```{r plot-errors, warning=FALSE}
 plotErrors(errF, nominalQ=TRUE)
+
 ```
 
 - Does the model (black line) reasonably fit the observations (black points)?
@@ -133,6 +140,7 @@ derepRs <- derepFastq(filtRs)
 # Name the derep-class objects by the sample names
 names(derepFs) <- sample.names
 names(derepRs) <- sample.names
+
 ```
 
 **Big Data**: The tutorial dataset is small enough to easily load into memory. If your dataset exceeds available RAM, it is preferable to process samples one-by-one in a streaming fashion: see the [DADA2 Workflow on Big Data](bigdata.html) for an example.
@@ -144,25 +152,28 @@ We are now ready to apply [the core sample inference algorithm](https://www.natu
 ```{r dada}
 dadaFs <- dada(derepFs, err=errF, multithread=2) # Set multithread=TRUE to use all cores
 dadaRs <- dada(derepRs, err=errR, multithread=2)
+
 ```
 
 Inspecting the returned `dada-class` object:
 ```{r see-dada}
 dadaFs[[1]]
+
 ```
-
-The `getSequences` and `getUniques` functions work on just about any dada2-created object. `getUniques` returns an integer vector, named by the sequences and valued by their abundances.
-
 ## DADA OPTIONS: Pooling and Pyrosequencing
 
+# Pooling
 Pooling can [increase sensitivity to rare per-sample variants](https://benjjneb.github.io/dada2/pool.html#pooling-for-sample-inference). Pseudo-pooling [approximates pooling in linear time](https://benjjneb.github.io/dada2/pseudo.html#pseudo-pooling).
 
-![](media/pseudo_480.png)
-
+# Pyrosequencing
 For pyrosequencing data (e.g. 454 or Ion Torrent) we recommend a slight change in the alignment parameters to better handle those technologies tendency to make homopolymer errors.
 
 ```{r pyro, eval=FALSE}
-foo <- dada(..., HOMOPOLYMER_GAP_PENALTY=-1, BAND_SIZE=32)
+# THIS IS JUST AN EXAMPLE OF THE SETTINGS ONE WOULD WANT TO USE FOR PYROSEQUENCED DATA
+
+# DO NOT RUN AS PART OF THIS LAB
+
+# foo <- dada(..., HOMOPOLYMER_GAP_PENALTY=-1, BAND_SIZE=32)
 ```
 
 *The adventurous can see `?setDadaOpt` for more algorithmic parameters.*
@@ -171,6 +182,7 @@ foo <- dada(..., HOMOPOLYMER_GAP_PENALTY=-1, BAND_SIZE=32)
 
 ```{r merge, message=FALSE}
 mergers <- mergePairs(dadaFs, derepFs, dadaRs, derepRs, verbose=TRUE)
+
 ```
 
 **Most reads should pass the merging step! If that isn't the case, are you sure your truncated reads still overlap sufficiently?**
@@ -180,12 +192,14 @@ mergers <- mergePairs(dadaFs, derepFs, dadaRs, derepRs, verbose=TRUE)
 ```{r seqtab}
 seqtab <- makeSequenceTable(mergers)
 dim(seqtab)
+
 ```
 
 The sequence table is a `matrix` with rows corresponding to (and named by) the samples, and columns corresponding to (and named by) the sequence variants.
 
 ```{r seqlens}
 table(nchar(getSequences(seqtab)))
+
 ```
 
 The lengths of the merged sequences all fall in the expected range for this amplicon.
@@ -195,9 +209,12 @@ The lengths of the merged sequences all fall in the expected range for this ampl
 Chimeric sequences are identified if they can be exactly reconstructed by combining a left-segment and a right-segment from two more abundant "parent" sequences.
 
 ```{r chimeras, message=FALSE}
-seqtab.nochim <- removeBimeraDenovo(seqtab, method="consensus", multithread=2, verbose=TRUE)
+seqtab.nochim <- removeBimeraDenovo(seqtab, method="consensus", multithread=1, verbose=TRUE)
 # Set multithread=TRUE to use all cores
+
+# Calculate number of reads that pass chimera filtering
 sum(seqtab.nochim)/sum(seqtab)
+
 ```
 
 **In some cases, most sequences will be chimric. But most reads should not be.**
@@ -205,41 +222,40 @@ sum(seqtab.nochim)/sum(seqtab)
 ## Track reads through the pipeline
 
 Look at the number of reads that made it through each step in the pipeline:
+
 ```{r track}
 getN <- function(x) sum(getUniques(x))
 track <- cbind(out, sapply(dadaFs, getN), sapply(dadaRs, getN), sapply(mergers, getN), rowSums(seqtab.nochim))
 colnames(track) <- c("input", "filtered", "denoisedF", "denoisedR", "merged", "nonchim")
 rownames(track) <- sample.names
 head(track)
+
 ```
 
 Looks good! We kept the majority of our raw reads, and there is no over-large drop associated with any single step.
-
-## SANITY CHECK: Read Tracking
-
-```{r track2}
-head(track)
-```
 
 - If a majority of reads failed to merge, you may need to revisit `truncLen` to ensure overlap.
 - If a majority of reads were removed as chimeric, you may have unremoved primers.
 
 ## Assign Taxonomy
 
-The `assignTaxonomy` function takes as input a set of sequences to ba classified, and a training set of reference sequences with known taxonomy, and outputs taxonomic assignments with at least `minBoot` bootstrap confidence. 
+The `assignTaxonomy` function takes as input a set of sequences to ba classified, and a training set of reference sequences with known taxonomy, and outputs taxonomic assignments with at least `minBoot` bootstrap confidence.
+
+This process can be slow, so we have precomputed this. The command you would actually run is #'d out in the following chunk. Do not run this, but DO run the unhased portion to load the precomputed taxonomic assignment file.
 
 ```{r taxify}
 ### taxa <- assignTaxonomy(seqtab.nochim, "../data/rdp_train_set_16.fa.gz", multithread=2)
+
 ### Commented out for cloud-friendliness
 taxa <- readRDS(file.path(path, "..", "taxa.rds"))
-```
 
-**I recommend [the Silva database](file:///Users/bcallah/dada2/training.html). We are using the RDP database here to keep file sizes down.**
+```
 
 ## SANITY CHECK: Taxonomic Assignments
 
 ```{r tax-look}
 head(unname(taxa))
+
 ```
 
 **Do the taxonomies assigned to the top ASVs make sense in the sampled environment?**
@@ -248,6 +264,7 @@ head(unname(taxa))
 
 ```{r phyloseq}
 library("phyloseq"); packageVersion("phyloseq")
+
 ```
 
 Create a phyloseq object from the ASV table and taxonomy assigned by DADA2.
@@ -256,10 +273,8 @@ Create a phyloseq object from the ASV table and taxonomy assigned by DADA2.
 ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE), 
                tax_table(taxa))
 ps
-```
 
-Usually you'll want to add sample metadata at this point as well.
+nsamples(ps)
+get_taxa_unique(ps, "Family")
 
-```{r cleanup, echo=FALSE, }
-foo <- file.remove(list.files(file.path(path, "filtered"), full.names=TRUE))
 ```
