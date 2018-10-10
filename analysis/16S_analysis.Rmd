@@ -13,7 +13,7 @@ The code chunks perform the following functions:
 1) Environment initiation
 2) Read in your data and select samples for analysis
 3) Variable examination and modification
-4) Data summary and assessment
+4) Sample summary and assessment
 5) Taxon prevalence estimations and filtering
 6) Data transformation
 7) Subsetting
@@ -22,7 +22,7 @@ The code chunks perform the following functions:
 10) Beta diversity analysis
 11) Differential abundance testing
 
-The data originate from a study on the bacterial microbiome of mice treated with or without antibiotics to test the affects of the antibiotic administration on flavivirus infection (https://www.ncbi.nlm.nih.gov/pubmed/29590614). Sequence data was generated from extracted nucleic acid from stool samples collected from individually caged mice and amplified using primers specific for the V4 region using primers 515F/806R.
+The data originate from a study on the effects of oral antibiotic administration on flavivirus infection (https://www.ncbi.nlm.nih.gov/pubmed/29590614). Sequence data was generated from extracted nucleic acid from stool samples collected from individually caged mice and amplified using primers specific for the V4 region using primers 515F/806R.
 
 The study followed flavivirus infection after the following treatments:
 
@@ -115,11 +115,11 @@ The output from a standard dada2 workflow will be an RDS file. In this case the 
 
 ```{r initiate-data}
 # Read in an RDS file containing taxonomic and count information
-ps0 <- readRDS("~/Dropbox/Research/2018_ASM_Workshop/data/16S_data.RDS")
+ps0 <- readRDS("~/workshop_materials/Microbiome/data/16S_data.RDS")
 ps0
 
 # Read in a mapping file containing sample variable information
-map <- import_qiime_sample_data("~/Dropbox/Research/2018_ASM_Workshop/data/16S_mapping.txt")
+map <- import_qiime_sample_data("~/workshop_materials/Microbiome/data/16S_mapping.txt")
 dim(map)
 
 # Merge the RDS file with the mapping file
