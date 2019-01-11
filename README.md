@@ -1,4 +1,4 @@
-# *"Microbiome Analysis Using R"*
+# *Microbiome Analysis Using R"
 
 Thanks to Joey McMurdie, Ben Callahan and Mike Mclaren for assisting with the original preperation of the Workshop materials.
 
