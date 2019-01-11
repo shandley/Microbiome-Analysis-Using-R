@@ -1,6 +1,6 @@
 # Microbiome Analysis Using R
 
-Thanks to Joey McMurdie [@joey711](https://github.com/joey711), Ben Callahan and Mike Mclaren for assisting with the original preperation of the Workshop materials.
+Thanks to Joey McMurdie [@joey711](https://github.com/joey711), Ben Callahan [benjjneb](https://github.com/benjjneb) and Mike Mclaren [mmclaren42](https://github.com/mmclaren42) for assisting with the original preperation of materials.
 
 If you are interested in more training, you can view information about several other courses I help run at: http://evomics.org.
 
@@ -9,6 +9,7 @@ These materials are intended to provide an overview of the basic principles unde
 
 The data originate from a study on the bacterial microbiome of mice treated with or without antibiotics to test the affects of the microbiome on flavivirus infection (https://www.ncbi.nlm.nih.gov/PubMed/29590614).
 
+# Overview
 An overview of the analysis steps implemented:
 
 1) Environment initiation
