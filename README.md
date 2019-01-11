@@ -1,6 +1,6 @@
 # Microbiome Analysis Using R
 
-Thanks to Joey McMurdie, Ben Callahan and Mike Mclaren for assisting with the original preperation of the Workshop materials.
+Thanks to Joey McMurdie (@joey711), Ben Callahan and Mike Mclaren for assisting with the original preperation of the Workshop materials.
 
 If you are interested in more training, you can view information about several other courses I help run at: http://evomics.org.
 
