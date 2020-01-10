@@ -1,9 +1,11 @@
 ---
-title: "DADA2 Tutorial: Durban 2018"
-output: slidy_presentation
+title: "DADA2 Tutorial"
+author: "Scott A. Handley"
+date: '`r format(Sys.Date(), "%B %d, %Y")`'
+output: html_document
 ---
 
-Adapted from Ben C. Callahan [benjjneb](https://github.com/benjjneb).
+*Adapted from Ben C. Callahan [benjjneb](https://github.com/benjjneb).
 
 ## Processing 16S rRNA marker-gene data with dada2.
 
@@ -15,20 +17,20 @@ Adapted from Ben C. Callahan [benjjneb](https://github.com/benjjneb).
 
 - If paired-end sequencing data, the forward and reverse fastq files contain reads in matched order.
 
-**Additional information about demultiplexing can be found on the dada2 website: https://benjjneb.github.io/dada2/index.html
+*Additional information about demultiplexing can be found on the dada2 website: https://benjjneb.github.io/dada2/index.html
 
 ## Load package and set path
 
-Load the `dada2` package. If you don't already it, see the [dada2 installation instructions](dada-installation.html):
+Load the `dada2` package. If it is not installed see the [dada2 installation instructions](dada-installation.html):
 
 ```{r load-libraries}
 library(dada2); packageVersion("dada2")
 
 ```
 
-# Set the path to the fastq files:
+# Set the path to the input fastq files:
 
-```{r path}
+```{r set-path}
 # You will need to make sure the path corresponds to where you cloned the repository
 path <- "~/Dropbox/Research/2018_ASM_Workshop/data/fastqs/"
 list.files(path)
@@ -55,25 +57,25 @@ sample.names
 
 ```
 
-## Check your amplicon design
+# Inspect forward and reverse read quality profiles
 
-We are using the 515F/806R primer set. The primers are not sequenced. The sequencing technology is 2x250 paired end Illumina (MiSeq).
+We are using the [515F/806R primer set](www.earthmicrobiome.org/protocols-and-standards/16s/) using the Illumina MiSeq paired 2x250 protocol.
 
-## Inspect forward read quality profiles
-
-```{r plotqF}
+```{r plot-quality}
+# Just select
 plotQualityProfile(fnFs[c(1,11)])
+
+p.qual.fwd <- plotQualityProfile(fnFs[1:10], aggregate = TRUE) + ggtitle("Forward")
+p.qual.fwd
+
+p.qual.rev <- plotQualityProfile(fnRs[1:10], aggregate = TRUE) + ggtitle("Reverse")
+p.qual.rev
 
 ```
 
 **Where to truncate?**
 
-## Inspect reverse read quality profiles
-
-```{r plotqR}
-plotQualityProfile(fnRs[c(2,12)])
-
-```
+This a questions that causes more stress than necessary. Just remove obviously low quality sequence. dada2 acutally does error correction, so a bit of error is fine.
 
 ## Filter and trim
 
@@ -84,11 +86,14 @@ Assign filenames for the filtered fastq.gz in the filtered/ subdirectory.
 filtFs <- file.path(path, "filtered", paste0(sample.names, "_F_filt.fastq.gz"))
 filtRs <- file.path(path, "filtered", paste0(sample.names, "_R_filt.fastq.gz"))
 
-```
 
-*What values will you select for quality control?*
+# What values will you select for quality control?
+# Pick values from the plots p.qual.fwd and p.qual.rev and enter them in the command below
+# truncLen=c(fwd,rev)
+# so if you wanted to remove 10 based from fwd and 20 bases from rev:
+# truncLen=c(240,230)
+# the example below is c(240,170) but feel free to play with this paramater
 
-```{r filter, message=FALSE, warning=FALSE}
 out <- filterAndTrim(fwd = fnFs, filt = filtFs, rev = fnRs, filt.rev = filtRs, 
                      truncLen=c(240,170),
                      maxEE=c(2,2),
@@ -97,9 +102,10 @@ out <- filterAndTrim(fwd = fnFs, filt = filtFs, rev = fnRs, filt.rev = filtRs,
 
 ```
 
-## SANITY CHECK: Filtering Stats
+# Filtering Stats
 
 ```{r filter-stats}
+# Examine the output file
 head(out)
 
 # Let's recall our ggplot2 exercises and make a quick plot of the trimming results in 'out'
@@ -107,12 +113,12 @@ head(out)
 library(tidyverse)
 
 # Check what type of object "out" is using the 'class' command
+# Tip: checking the class of an object can help diagnose many common problems in R
 class(out)
 
-# ggplot doesn't work on matrixes, so you need to conver "out" to a data.frame
-# using 'class' to determine what type of object you are working with can solve numerous problems
-
+# ggplot doesn't work on matrixes, so you need to convert "out" to a data.frame
 out.df <- as.data.frame(out)
+class(out.df)
 
 ggplot(out.df, aes(x = reads.in, y = reads.out)) +
   geom_point(size = 3, alpha = 0.6) +
@@ -133,7 +139,9 @@ out.df %>%
 
 **The truncation lengths are the most likely parameters you might want to revisit.**
 
-# Learn the Error Rates
+# Learn Error Rates
+
+The DADA2 algorithm makes use of a parametric error model (`err`) and every amplicon dataset has a different set of error rates. The `learnErrors` method learns this error model from the data, by alternating estimation of the error rates and inference of sample composition until they converge on a jointly consistent solution.
 
 ```{r learn-errors}
 # Learn the error rates for the forward reads
@@ -145,36 +153,24 @@ errR <- learnErrors(filtRs, multithread=1)
 # There is a 'hidden' function in dada2 that allows you to extract the 'convergence' estimate at each iteration
 plot(dada2:::checkConvergence(errF), type = "o", col = "firebrick3", main = "Convergence")
 
-# Don't worry too much about this, as long as your convergence (y-axis) is flattening out over the iterations (x-axis) then you are in good shape
+# Don't worry too much about this. As long as the line rapidly drops-off near zero and not substantially improve thereafter.
 
-```
-
-The DADA2 algorithm makes use of a parametric error model (`err`) and every amplicon dataset has a different set of error rates. The `learnErrors` method learns this error model from the data, by alternating estimation of the error rates and inference of sample composition until they converge on a jointly consistent solution.
-
-## SANITY CHECK: Error Rates
-
-```{r plot-errors, warning=FALSE}
+# Plot individual transition and transversion error rates
 plotErrors(errF, nominalQ=TRUE)
 
-```
+# Does the model (black line) reasonably fit the observations (black points)?
+# Do the error rates mostly decrease with quality score?
 
-Check error model estimation convergence. The line should rapidly drop-off near zero and not substantially improve thereafter.
-
-```{r plot-convergence}
-plot(dada2:::checkConvergence(errF))
+# The goal here is good, not perfect, so don't sweat the small stuff (or non-convergence).
 
 ```
-
-- Does the model (black line) reasonably fit the observations (black points)?
-- Do the error rates mostly decrease with quality score?
-
-The goal here is good, not perfect, so don't sweat the small stuff (or non-convergence).
 
 ## Dereplicate
 
 Dereplication combines all identical sequencing reads into "unique sequences" with a corresponding "abundance" equal to the number of reads with that unique sequence.
 
-```{r dereplicate, message=FALSE}
+```{r dereplicate}
+# derep
 derepFs <- derepFastq(filtFs)
 derepRs <- derepFastq(filtRs)
 
@@ -184,9 +180,7 @@ names(derepRs) <- sample.names
 
 ```
 
-**Big Data**: The tutorial dataset is small enough to easily load into memory. If your dataset exceeds available RAM, it is preferable to process samples one-by-one in a streaming fashion: see the [DADA2 Workflow on Big Data](bigdata.html) for an example.
-
-## Sample Inference
+# Sample Inference
 
 We are now ready to apply [the core sample inference algorithm](https://www.nature.com/articles/nmeth.3869#methods) to the dereplicated data. 
 
@@ -194,50 +188,30 @@ We are now ready to apply [the core sample inference algorithm](https://www.natu
 dadaFs <- dada(derepFs, err=errF, multithread=1) # Set multithread=TRUE to use all cores
 dadaRs <- dada(derepRs, err=errR, multithread=1)
 
-```
+# Inspecting the returned `dada-class` object:
 
-Inspecting the returned `dada-class` object:
-
-```{r see-dada}
 dadaFs[[1]]
 
 # The key thing to note here is the number of sequence variants identified in the input sequences
 
 ```
-## DADA OPTIONS: Pooling and Pyrosequencing
 
-# Pooling
-Pooling can [increase sensitivity to rare per-sample variants](https://benjjneb.github.io/dada2/pool.html#pooling-for-sample-inference). Pseudo-pooling [approximates pooling in linear time](https://benjjneb.github.io/dada2/pseudo.html#pseudo-pooling).
+# Merge Paired Reads
 
-# Pyrosequencing
-For pyrosequencing data (e.g. 454 or Ion Torrent) we recommend a slight change in the alignment parameters to better handle those technologies tendency to make homopolymer errors.
-
-```{r pyro, eval=FALSE}
-# THIS IS JUST AN EXAMPLE OF THE SETTINGS ONE WOULD WANT TO USE FOR PYROSEQUENCED DATA
-
-# DO NOT RUN AS PART OF THIS LAB
-
-# foo <- dada(..., HOMOPOLYMER_GAP_PENALTY=-1, BAND_SIZE=32)
-```
-
-*The adventurous can see `?setDadaOpt` for more algorithmic parameters.*
-
-## Merge Paired Reads
-
-```{r merge, message=FALSE}
+```{r merge}
 mergers <- mergePairs(dadaFs, derepFs, dadaRs, derepRs, verbose=TRUE)
 
 ```
 
-It is arguable if merging adds anything to the analysis for this primer set. Since R1 (fwd) and R2 (rev) sequence an overlapping region of the 16S rRNA gene, just analyzing R1 is essentially the same as analyzing merged R1-R2.
+It is debatable if merging paired reads adds anything to the analysis for this primer set. Since R1 (fwd) and R2 (rev) sequence an overlapping region of the 16S rRNA gene, just analyzing R1 is essentially the same as analyzing merged R1-R2.
 
 Other primer sets of genes (ITS, 18S, etc.) might benefit from merging.
 
 **Most reads should pass the merging step! If that isn't the case, are you sure your truncated reads still overlap sufficiently?**
 
-## Construct Sequence Table (ASV Table)
+# Construct Sequence Table (ASV Table)
 
-```{r seqtab}
+```{r create-seqtab}
 seqtab <- makeSequenceTable(mergers)
 dim(seqtab)
 
@@ -245,22 +219,19 @@ dim(seqtab)
 
 The sequence table is a `matrix` with rows corresponding to (and named by) the samples, and columns corresponding to (and named by) the sequence variants.
 
-## Remove chimeras
+# Remove chimeras
 
 Chimeric sequences are identified if they can be exactly reconstructed by combining a left-segment and a right-segment from two more abundant "parent" sequences.
 
-```{r chimeras, message=FALSE}
-seqtab.nochim <- removeBimeraDenovo(seqtab, method="consensus", multithread=1, verbose=TRUE)
-# Set multithread=TRUE to use all cores
+```{r remove-chimeras}
+seqtab.nochim <- removeBimeraDenovo(seqtab, method="consensus", verbose=TRUE)
 
 # Calculate % of reads that pass chimera filtering
 100*(sum(seqtab.nochim)/sum(seqtab))
 
 ```
 
-## Track reads through the pipeline
-
-Look at the number of reads that made it through each step in the pipeline:
+# Track reads through the pipeline
 
 ```{r track}
 # This is some custom code to pull out important values from the dada2 workflow
@@ -276,18 +247,18 @@ class(track)
 
 # It's a matrix again. Let's convert and make some quick plots
 track.df <- as.data.frame(track)
+class(track.df)
 
 # ggplot2 (and all of tidyverse) works really well with 'long' form data
-# Let's conver to long form so we can make a line plot of each stage
+# Let's convert to long form so we can make a line plot of each stage
 track.df.long <- track.df %>%
   rownames_to_column(var = "sample_id") %>% # make the rownames a variable
-  pivot_longer(-sample_id, # Pivot everything other than sample_id
-               values_to = "Number", # Column name the values
-               names_to = "Stage") # Column name the stages
+  pivot_longer(-sample_id, # Pivot everything other than sample_id to 'long' format
+               values_to = "Number", # Column name for values
+               names_to = "Stage") # Column name for stages
 
 # Now we can plot the number of reads per each stage
-# There are likely some new features in this ggplot2 code
-# Google them or read the help pages to see what they do!
+# These are just a couple of quick examples. There are a large number of ways to explore your data!
 
 # Line plot
 ggplot(track.df.long, aes(x = reorder(sample_id, Number), y = Number, col = Stage, group = Stage)) +
@@ -313,32 +284,23 @@ Looks good! We kept the majority of our raw reads, and there is no over-large dr
 - If a majority of reads failed to merge, you may need to revisit `truncLen` to ensure overlap.
 - If a majority of reads were removed as chimeric, you may have unremoved primers.
 
-## Assign Taxonomy
+# Assign Taxonomy
 
 The `assignTaxonomy` function takes as input a set of sequences to ba classified, and a training set of reference sequences with known taxonomy, and outputs taxonomic assignments with at least `minBoot` bootstrap confidence.
 
 This process can be slow, so we have precomputed this. The command you would actually run is #'d out in the following chunk. Do not run this, but DO run the unhased portion to load the precomputed taxonomic assignment file.
 
-```{r taxify}
+```{r taxonomy-assignment}
 ### Commented out for cloud-friendliness
 ### taxa <- assignTaxonomy(seqtab.nochim, "../data/rdp_train_set_16.fa.gz", multithread=2)
-
 taxa <- readRDS(file.path(path, "..", "taxa.rds"))
 
 ```
 
-**Do the taxonomies assigned to the top ASVs make sense in the sampled environment?**
-
-## Handoff to Phyloseq
+# Handoff to Phyloseq
 
 ```{r phyloseq}
 library("phyloseq"); packageVersion("phyloseq")
-
-```
-
-Create a phyloseq object from the ASV table and taxonomy assigned by DADA2.
-
-```{r make-ps}
 ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE), 
                tax_table(taxa))
 ps
@@ -348,3 +310,23 @@ nsamples(ps)
 get_taxa_unique(ps, "Family")
 
 ```
+
+## DADA OPTIONS: Big data, Pooling and Pyrosequencing
+
+# Big data: The tutorial dataset is small enough to easily load into memory. If your dataset exceeds available RAM, it is preferable to process samples one-by-one in a streaming fashion: see the [DADA2 Workflow on Big Data](bigdata.html) for an example.
+
+# Pooling
+Pooling can [increase sensitivity to rare per-sample variants](https://benjjneb.github.io/dada2/pool.html#pooling-for-sample-inference). Pseudo-pooling [approximates pooling in linear time](https://benjjneb.github.io/dada2/pseudo.html#pseudo-pooling).
+
+# Pyrosequencing
+For pyrosequencing data (e.g. 454 or Ion Torrent) we recommend a slight change in the alignment parameters to better handle those technologies tendency to make homopolymer errors.
+
+```{r pyro, eval=FALSE}
+# THIS IS JUST AN EXAMPLE OF THE SETTINGS ONE WOULD WANT TO USE FOR PYROSEQUENCED DATA
+
+# DO NOT RUN AS PART OF THIS LAB
+
+# foo <- dada(..., HOMOPOLYMER_GAP_PENALTY=-1, BAND_SIZE=32)
+```
+
+*The adventurous can see `?setDadaOpt` for more algorithmic parameters.*
