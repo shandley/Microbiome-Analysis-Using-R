@@ -3,7 +3,7 @@ title: "DADA2 Tutorial: Durban 2018"
 output: slidy_presentation
 ---
 
-Adapted from Ben C. Callahan, ASM 2018 Workshop.
+Adapted from Ben C. Callahan [benjjneb](https://github.com/benjjneb).
 
 ## Processing 16S rRNA marker-gene data with dada2.
 
@@ -26,16 +26,19 @@ library(dada2); packageVersion("dada2")
 
 ```
 
-Set the path to the fastq files:
+# Set the path to the fastq files:
+
 ```{r path}
-path <- "~/workshop_materials/Microbiome/data/fastqs/"
+# You will need to make sure the path corresponds to where you cloned the repository
+path <- "~/Dropbox/Research/2018_ASM_Workshop/data/fastqs/"
 list.files(path)
 
 ```
 
-## Forward, Reverse, Sample Names
+# Forward, Reverse, Sample Names
 
 Get matched lists of the forward and reverse fastq.gz files:
+
 ```{r filenames}
 # Forward and reverse fastq filenames have format: SAMPLENAME_R1.fastq.gz and SAMPLENAME_R2.fastq.gz
 fnFs <- sort(list.files(path, pattern="_R1.fastq.gz", full.names = TRUE))
@@ -44,7 +47,7 @@ fnFs[[1]]; fnRs[[1]]
 
 ```
 
-Extract sample names, assuming filenames have format: SAMPLENAME_XXX.fastq.gz:
+# Extract sample names, assuming filenames have format: SAMPLENAME_XXX.fastq.gz:
 
 ```{r sample-names}
 sample.names <- sapply(strsplit(basename(fnFs), "_"), `[`, 1)
@@ -54,9 +57,7 @@ sample.names
 
 ## Check your amplicon design
 
-We are using the 515F/806R primer set. The primers are not sequenced. The sequencing technology is 2x250 paired end Illumina.
-
-**What does this mean for later? Artifacts? Trimming?**
+We are using the 515F/806R primer set. The primers are not sequenced. The sequencing technology is 2x250 paired end Illumina (MiSeq).
 
 ## Inspect forward read quality profiles
 
@@ -74,24 +75,25 @@ plotQualityProfile(fnRs[c(2,12)])
 
 ```
 
-**Where to truncate?**
-
 ## Filter and trim
 
 Assign filenames for the filtered fastq.gz in the filtered/ subdirectory.
 
 ```{r filt-names}
+# This presets output file names for the filtered data
 filtFs <- file.path(path, "filtered", paste0(sample.names, "_F_filt.fastq.gz"))
 filtRs <- file.path(path, "filtered", paste0(sample.names, "_R_filt.fastq.gz"))
 
 ```
 
-The critical parameters we chose are the truncation lengths of **240** (forward) and **170** (reverse). *Why did we choose these values?*
+*What values will you select for quality control?*
 
 ```{r filter, message=FALSE, warning=FALSE}
-out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, 
-                     truncLen=c(240,160), maxEE=c(2,2), # maxEE=2 is the default
-                     compress=TRUE, multithread=FALSE) # Set multithread=TRUE to use all cores
+out <- filterAndTrim(fwd = fnFs, filt = filtFs, rev = fnRs, filt.rev = filtRs, 
+                     truncLen=c(240,170),
+                     maxEE=c(2,2),
+                     compress=TRUE,
+                     multithread=FALSE)
 
 ```
 
@@ -99,6 +101,29 @@ out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs,
 
 ```{r filter-stats}
 head(out)
+
+# Let's recall our ggplot2 exercises and make a quick plot of the trimming results in 'out'
+# First we need to load the ggplot library
+library(tidyverse)
+
+# Check what type of object "out" is using the 'class' command
+class(out)
+
+# ggplot doesn't work on matrixes, so you need to conver "out" to a data.frame
+# using 'class' to determine what type of object you are working with can solve numerous problems
+
+out.df <- as.data.frame(out)
+
+ggplot(out.df, aes(x = reads.in, y = reads.out)) +
+  geom_point(size = 3, alpha = 0.6) +
+  geom_smooth(method = "lm") + # quick linear model
+  labs(x = "Raw Reads", y = "Trimmed Reads", title = "Read Trimming Results")
+
+# What other data can we extract from this table?
+# Just some examples of how to calculate quick table statstics
+out.df %>%
+  mutate(diff = reads.in-reads.out) %>%
+  mutate(percent = round((100*(reads.out/reads.in)), digits = 2))
 
 ```
 
@@ -108,11 +133,19 @@ head(out)
 
 **The truncation lengths are the most likely parameters you might want to revisit.**
 
-## Learn the Error Rates
+# Learn the Error Rates
 
 ```{r learn-errors}
+# Learn the error rates for the forward reads
 errF <- learnErrors(filtFs, multithread=1) # Set multithread=TRUE to use all cores
+
+# Learn the error rates for the reverse reads
 errR <- learnErrors(filtRs, multithread=1)
+
+# There is a 'hidden' function in dada2 that allows you to extract the 'convergence' estimate at each iteration
+plot(dada2:::checkConvergence(errF), type = "o", col = "firebrick3", main = "Convergence")
+
+# Don't worry too much about this, as long as your convergence (y-axis) is flattening out over the iterations (x-axis) then you are in good shape
 
 ```
 
@@ -144,6 +177,7 @@ Dereplication combines all identical sequencing reads into "unique sequences" wi
 ```{r dereplicate, message=FALSE}
 derepFs <- derepFastq(filtFs)
 derepRs <- derepFastq(filtRs)
+
 # Name the derep-class objects by the sample names
 names(derepFs) <- sample.names
 names(derepRs) <- sample.names
@@ -157,14 +191,17 @@ names(derepRs) <- sample.names
 We are now ready to apply [the core sample inference algorithm](https://www.nature.com/articles/nmeth.3869#methods) to the dereplicated data. 
 
 ```{r dada}
-dadaFs <- dada(derepFs, err=errF, multithread=2) # Set multithread=TRUE to use all cores
-dadaRs <- dada(derepRs, err=errR, multithread=2)
+dadaFs <- dada(derepFs, err=errF, multithread=1) # Set multithread=TRUE to use all cores
+dadaRs <- dada(derepRs, err=errR, multithread=1)
 
 ```
 
 Inspecting the returned `dada-class` object:
+
 ```{r see-dada}
 dadaFs[[1]]
+
+# The key thing to note here is the number of sequence variants identified in the input sequences
 
 ```
 ## DADA OPTIONS: Pooling and Pyrosequencing
@@ -192,6 +229,10 @@ mergers <- mergePairs(dadaFs, derepFs, dadaRs, derepRs, verbose=TRUE)
 
 ```
 
+It is arguable if merging adds anything to the analysis for this primer set. Since R1 (fwd) and R2 (rev) sequence an overlapping region of the 16S rRNA gene, just analyzing R1 is essentially the same as analyzing merged R1-R2.
+
+Other primer sets of genes (ITS, 18S, etc.) might benefit from merging.
+
 **Most reads should pass the merging step! If that isn't the case, are you sure your truncated reads still overlap sufficiently?**
 
 ## Construct Sequence Table (ASV Table)
@@ -204,13 +245,6 @@ dim(seqtab)
 
 The sequence table is a `matrix` with rows corresponding to (and named by) the samples, and columns corresponding to (and named by) the sequence variants.
 
-```{r seqlens}
-table(nchar(getSequences(seqtab)))
-
-```
-
-The lengths of the merged sequences all fall in the expected range for this amplicon.
-
 ## Remove chimeras
 
 Chimeric sequences are identified if they can be exactly reconstructed by combining a left-segment and a right-segment from two more abundant "parent" sequences.
@@ -219,23 +253,58 @@ Chimeric sequences are identified if they can be exactly reconstructed by combin
 seqtab.nochim <- removeBimeraDenovo(seqtab, method="consensus", multithread=1, verbose=TRUE)
 # Set multithread=TRUE to use all cores
 
-# Calculate number of reads that pass chimera filtering
-sum(seqtab.nochim)/sum(seqtab)
+# Calculate % of reads that pass chimera filtering
+100*(sum(seqtab.nochim)/sum(seqtab))
 
 ```
-
-**In some cases, most sequences will be chimric. But most reads should not be.**
 
 ## Track reads through the pipeline
 
 Look at the number of reads that made it through each step in the pipeline:
 
 ```{r track}
+# This is some custom code to pull out important values from the dada2 workflow
+# Don't worry too much about the code at this point, just focus on teh results table (track)
 getN <- function(x) sum(getUniques(x))
-track <- cbind(out, sapply(dadaFs, getN), sapply(dadaRs, getN), sapply(mergers, getN), rowSums(seqtab.nochim))
-colnames(track) <- c("input", "filtered", "denoisedF", "denoisedR", "merged", "nonchim")
+track <- cbind(out, sapply(dadaFs, getN), sapply(dadaRs, getN), rowSums(seqtab.nochim))
+colnames(track) <- c("input", "filtered", "denoisedF", "denoisedR", "nonchim")
 rownames(track) <- sample.names
 head(track)
+
+# Is this a matrix or data.frame?
+class(track)
+
+# It's a matrix again. Let's convert and make some quick plots
+track.df <- as.data.frame(track)
+
+# ggplot2 (and all of tidyverse) works really well with 'long' form data
+# Let's conver to long form so we can make a line plot of each stage
+track.df.long <- track.df %>%
+  rownames_to_column(var = "sample_id") %>% # make the rownames a variable
+  pivot_longer(-sample_id, # Pivot everything other than sample_id
+               values_to = "Number", # Column name the values
+               names_to = "Stage") # Column name the stages
+
+# Now we can plot the number of reads per each stage
+# There are likely some new features in this ggplot2 code
+# Google them or read the help pages to see what they do!
+
+# Line plot
+ggplot(track.df.long, aes(x = reorder(sample_id, Number), y = Number, col = Stage, group = Stage)) +
+  theme_linedraw() +
+  geom_point(size = 2) +
+  geom_line(lty = 2) +
+  theme(axis.text.x = element_blank())
+
+# Boxplot
+ggplot(track.df.long, aes(x = reorder(Stage, -Number), y = Number)) +
+  geom_boxplot(outlier.shape = "") +
+  geom_jitter(width = 0.1, alpha = 0.7, size = 2)
+
+# You can also quickly get summary statistcs from long form data
+track.df.long %>%
+  group_by(Stage) %>%
+  summarise(Mean = sum(Number))
 
 ```
 
@@ -255,13 +324,6 @@ This process can be slow, so we have precomputed this. The command you would act
 ### taxa <- assignTaxonomy(seqtab.nochim, "../data/rdp_train_set_16.fa.gz", multithread=2)
 
 taxa <- readRDS(file.path(path, "..", "taxa.rds"))
-
-```
-
-## SANITY CHECK: Taxonomic Assignments
-
-```{r tax-look}
-head(unname(taxa))
 
 ```
 
