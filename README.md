@@ -2,7 +2,11 @@
 
 Thanks to Joey McMurdie [@joey711](https://github.com/joey711), Ben Callahan [benjjneb](https://github.com/benjjneb) and Mike Mclaren [mmclaren42](https://github.com/mmclaren42) for assisting with the original preperation of materials.
 
-If you are interested in more training, you can view information about several other courses I help run at: http://evomics.org.
+This material has sense been taught at:
+
+1) Universidad de los Andes, Bogota, Colombia (3-7 December, 2018)
+2) Univeristy KwaZulu-Natal, Durban, South Africa (8-12 October, 2018)
+2) Workshop on Genomics, Cesky Krumlov, Czech Republic (5-18 January, 2020)
 
 # Background
 These materials are intended to provide an overview of the basic principles underlying microbiome analysis using R. The materials are a mash-up of stuff we use in research, but also some contived examples we have found useful for teaching purposes. So if some of the code seems silly or verbose it is probably there for a reason only clear when teaching.
