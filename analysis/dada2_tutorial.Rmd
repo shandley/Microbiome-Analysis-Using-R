@@ -25,6 +25,7 @@ Load the `dada2` package. If it is not installed see the [dada2 installation ins
 
 ```{r load-libraries}
 library(dada2); packageVersion("dada2")
+library(tidyverse); packageVersion("tidyverse")
 
 ```
 
@@ -32,7 +33,7 @@ library(dada2); packageVersion("dada2")
 
 ```{r set-path}
 # You will need to make sure the path corresponds to where you cloned the repository
-path <- "~/Dropbox/Research/2018_ASM_Workshop/data/fastqs/"
+path <- "~~/Microbiome-Analysis-Using-R/data/fastqs/"
 list.files(path)
 
 ```
@@ -109,8 +110,6 @@ out <- filterAndTrim(fwd = fnFs, filt = filtFs, rev = fnRs, filt.rev = filtRs,
 head(out)
 
 # Let's recall our ggplot2 exercises and make a quick plot of the trimming results in 'out'
-# First we need to load the ggplot library
-library(tidyverse)
 
 # Check what type of object "out" is using the 'class' command
 # Tip: checking the class of an object can help diagnose many common problems in R
@@ -134,7 +133,7 @@ out.df %>%
 ```
 
 - What fraction of reads were kept?
-- Was that fraction reasonably connsistent among samples?
+- Was that fraction reasonably consistent among samples?
 - Were enough reads kept to achieve your analysis goals?
 
 **The truncation lengths are the most likely parameters you might want to revisit.**
