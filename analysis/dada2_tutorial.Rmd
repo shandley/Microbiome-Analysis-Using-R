@@ -26,9 +26,16 @@ editor_options:
 Load the `dada2` package. If it is not installed see the [dada2 installation instructions](dada-installation.html):
 
 ```{r install}
+# Install dada2
 if (!requireNamespace("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
 BiocManager::install("dada2")
+
+# Install PhyloSeq
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("phyloseq")
 ```
 
 ```{r load-libraries}

@@ -1,22 +1,21 @@
 ---
 title: "Microbiome Analysis Using R (mini tutorial)"
 author: "Scott A. Handley"
-date: "1/11/2022"
+date: '`r format(Sys.Date(), "%B %d, %Y")`'
 output: html_document
 ---
 
 ## Load libraries
 
-
 ```{r install-packages}
 # Install tidyverse (https://www.tidyverse.org/packages/)
-install.packages("tidyverse")
+# install.packages("tidyverse")
 
 # Install phyloseq
-if (!requireNamespace("BiocManager", quietly = TRUE))
-    install.packages("BiocManager")
+# if (!requireNamespace("BiocManager", quietly = TRUE))
+#    install.packages("BiocManager")
 
-BiocManager::install("phyloseq")
+# BiocManager::install("phyloseq")
 
 # If it asks you to update all packages [a/s/n] then select a
 
@@ -37,18 +36,22 @@ library("ggpubr")
 ```
 
 ```{r load-data}
-# Read data in from Washington University server
-ps0 <- readRDS(gzcon(url("https://htcf.wustl.edu/files/LXm0pkeb/16S_data.RDS")))
-
-# Examine ps0
+# Read in an RDS file containing taxonomic and count information
+ps0 <- readRDS("~/Microbiome-Analysis-Using-R/data/16S_data.RDS")
 ps0
 
-# Explore variables, taxonomy, etc.
-# A figure containing all helpful commands can be found here: https://joey711.github.io/phyloseq/import-data.html
-sample_names(ps0)
-sample_variables(ps0)
-rank_names(ps0)
-get_taxa_unique(ps0, "Phylum")
+# Read in a mapping file containing sample variable information
+map <- import_qiime_sample_data("~/Microbiome-Analysis-Using-R/data/16S_mapping.txt")
+dim(map)
+
+# Merge the RDS file with the mapping file
+ps0 <- merge_phyloseq(ps0, map)
+
+# Perform a few sanity checks
+sample_variables(ps0) # Display variables from the mapping file
+ntaxa(ps0) # Total number of taxa in the entire data
+rank_names(ps0) # Taxonomic ranks
+get_taxa_unique(ps0, "Phylum") # Unique phylum names in the file
 
 ```
 
