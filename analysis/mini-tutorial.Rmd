@@ -1,0 +1,253 @@
+---
+title: "Microbiome Analysis Using R (mini tutorial)"
+author: "Scott A. Handley"
+date: "1/11/2022"
+output: html_document
+---
+
+## Load libraries
+
+
+```{r install-packages}
+# Install tidyverse (https://www.tidyverse.org/packages/)
+install.packages("tidyverse")
+
+# Install phyloseq
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("phyloseq")
+
+# If it asks you to update all packages [a/s/n] then select a
+
+# If it asks you "Do you want to install from source ... (Yes/no/cancel)" then type Yes
+
+# The install will take several minutes
+
+# Install an additional package that will help us arrange plots
+install.packages("ggpubr")
+
+```
+
+```{r activate-libraries}
+library("tidyverse")
+library("phyloseq")
+library("ggpubr")
+
+```
+
+```{r load-data}
+# Read data in from Washington University server
+ps0 <- readRDS(gzcon(url("https://htcf.wustl.edu/files/LXm0pkeb/16S_data.RDS")))
+
+# Examine ps0
+ps0
+
+# Explore variables, taxonomy, etc.
+# A figure containing all helpful commands can be found here: https://joey711.github.io/phyloseq/import-data.html
+sample_names(ps0)
+sample_variables(ps0)
+rank_names(ps0)
+get_taxa_unique(ps0, "Phylum")
+
+```
+
+```{r sample-removal-identification}
+# Format a data table to combine sample summary data with sample variable data
+ss <- sample_sums(ps0)
+sd <- as.data.frame(sample_data(ps0))
+ss.df <- merge(sd, data.frame("ASV" = ss), by ="row.names")
+
+# Plot the data by the treatment variable
+y = 1000 # Set a threshold for the minimum number of acceptable reads. Can start as a guess
+x = "treatment_days" # Set the x-axis variable you want to examine
+label = "sample" # This is the label you want to overlay on the points
+
+# Start by building a basic plot of the number of sequences (ASV) per treatment group (antibiotics vs. vehicle control)
+
+# Basic plot
+ggplot(ss.df, aes(x = treatment, y = ASV)) +
+  geom_point() 
+
+# This plot looks OK. We can see that there are more reads in the control (Vehicle) samples as one would expect. Surprisingly, metronidazole (metro) doesnt have a significant impact on the number of sequences
+
+# Let's do better and spread the points apart using 'geom_jitter' and also plot the y-axis on a log scale
+ggplot(ss.df, aes(x = treatment, y = ASV)) +
+  geom_jitter() +
+  scale_y_log10()
+
+# That is a little easier to view, but since samples were taken over a series of days, lets separate the data for each day and take another look. We can also color the points, so let's do that by the treatment type just to make things easier to read
+ggplot(ss.df, aes(x = treatment, y = ASV, color = treatment)) +
+  geom_jitter() +
+  scale_y_log10() +
+  facet_wrap(~treatment_days)
+
+# That looks pretty good. lets save the plot
+asv.plot <- ggplot(ss.df, aes(x = treatment, y = ASV, color = treatment)) +
+  geom_jitter() +
+  scale_y_log10() +
+  facet_wrap(~treatment_days)
+
+# Now the plot is saved as an object called asv.plot. We can call that back by typing it
+asv.plot
+
+```
+
+```{r taxon-cleaning}
+# Some examples of taxa you may not want to include in your analysis
+get_taxa_unique(ps0, "Kingdom")
+get_taxa_unique(ps0, "Phylum")
+get_taxa_unique(ps0, "Class")
+
+# Check the number of taxa prior to removal
+ps0
+
+# This code will remove unwanted taxa (from non-bacterial organisms) using the subset_taxa function from phyloseq
+# We don't want to destroy the original phyloseq object (ps0) so we will make a new one called ps1
+ps1 <- ps0 %>%
+  subset_taxa(
+    Kingdom == "Bacteria" &
+    Class   != "Chloroplast" &
+    Phylum != "Cyanobacteria/Chloroplast"
+  )
+
+# Confirm that the taxa were removed
+ps1
+get_taxa_unique(ps1, "Kingdom")
+get_taxa_unique(ps1, "Class")
+
+```
+
+```{r prevalence-assessment}
+# Prevalence estimation
+# This is a more complicated plot to make. It is not important that you understand each line of code, but I wanted to make sure you were able to make these very interesting plots. Just work through the code line-by-line and examine the results
+
+# Calculate feature prevalence across the data set
+prevdf <- apply(X = otu_table(ps1),MARGIN = ifelse(taxa_are_rows(ps1), yes = 1, no = 2),FUN = function(x){sum(x > 0)})
+
+# Add taxonomy and total read counts to prevdf
+prevdf <- data.frame(Prevalence = prevdf, TotalAbundance = taxa_sums(ps1), tax_table(ps1))
+
+#Prevalence plot
+prevdf1 <- subset(prevdf, Phylum %in% get_taxa_unique(ps1, "Phylum"))
+p.prevdf1 <- ggplot(prevdf1, aes(TotalAbundance, Prevalence / nsamples(ps1),color=Family)) +
+  geom_hline(yintercept = 0.05, alpha = 0.5, linetype = 2) +
+  geom_point(size = 3, alpha = 0.7) +
+  scale_x_log10() +
+  xlab("Total Abundance") + ylab("Prevalence [Frac. Samples]") +
+  facet_wrap(~Phylum) +
+  theme(legend.position="none") +
+  ggtitle("Phylum Prevalence in All Samples\nColored by Family")
+p.prevdf1
+
+# You can use these plots to examine what bacterial taxa would be removed if you applied a prevlance filter. The horizontal dashed line is set at 5% so anything below that line would be removed if you required it to be in more than 5% of all of the samples in the study. This would remove all of the Fusobacteria, so be thoughtful about filtering before you do so.
+
+```
+
+```{r community-composition-plots}
+# This is code to make the commonly used relative abundance barplots.
+
+# First, you need to make a new data frame (in this case called ps1_phylum) that transforms your count data to relative abundances instead of raw counts
+# Create a data table for ggplot
+ps1_phylum <- ps1 %>%
+  tax_glom(taxrank = "Phylum") %>%                     # agglomerate at phylum level
+  transform_sample_counts(function(x) {x/sum(x)} ) %>% # Transform to rel. abundance (or use ps0.ra)
+  psmelt() %>%                                         # Melt to long format for easy ggploting
+  filter(Abundance > 0.01)                             # Filter out low abundance taxa
+
+# Plot - Phylum
+p.ra.phylum <- ggplot(ps1_phylum, aes(x = sample_id, y = Abundance, fill = Phylum)) + 
+  geom_bar(stat = "identity", width = 1) +
+  facet_wrap(treatment~treatment_days, scales = "free_x") +
+  theme(axis.text.x = element_blank()) +
+  theme(axis.title.x = element_blank()) +
+  labs(title = "Abundant Phylum (> 1%)")
+p.ra.phylum
+
+#This is quite a busy set of plots since there is so much data. Let 'subset' our data to a smaller group so we can examine a smaller set.
+
+# Subset just the Amp (Ampicillin) treated mouse samples
+ps1_phylum.amp <- ps1_phylum %>%
+  filter(treatment == "Amp")
+
+# Now we can replot with just the Amp samples
+ggplot(ps1_phylum.amp, aes(x = sample_id, y = Abundance, fill = Phylum)) + 
+  geom_bar(stat = "identity", width = 1) +
+  facet_wrap(~treatment_days, scales = "free_x", ncol = 4, nrow = 2) +
+  theme(axis.text.x = element_blank()) +
+  theme(axis.title.x = element_blank()) +
+  labs(title = "Abundant Phylum (> 1%)")
+
+# That's much easier to read!
+
+```
+
+```{r alpha-diversity}
+# Alpha diversity
+# Alpha diversity is the diversity within each sample
+# The most basic alpah diversity measure is to just count up the number of taxa per sample. This is known as sample "Richness".
+# Let's calculate the sample richness for our samples and plot
+# In phyloseq Richness is called "Observed"
+alpha.div <- estimate_richness(ps1, measures = c("Observed"))
+alpha.div
+
+# This gives us the number of bacterial taxa per samples, but it no longer has any of our sample metadata.
+# That's OK because we can extract the sample metadata from our phyloseq object (ps1) and merge with these richness values
+sd.1 <- as.data.frame(sample_data(ps1))
+sd.1
+
+# Now merge by binding the columns with cbind
+ps1.rich <- cbind(sd.1, alpha.div)
+ps1.rich
+
+# Now that we have our Richness calculations combined with out metadata we can make plots!
+ggplot(ps1.rich, aes(x = treatment_days, y = Observed, color = treatment, group = treatment)) +
+  stat_smooth(method = "loess") +
+  labs(y = "Richness", color = "Treatment", x = "") +
+  geom_jitter(size = 2, alpha = 0.5, width = 0.2) +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple"))
+
+# In that plot we can visualize the number of taxa in our mice over time per each antibiotics treatment
+# You should notice one thing about the x-axis. The time-points are out of order!
+# This is because R reads them in literally and D3 comes after D20 because 3 is larger than 2. It's messy, but this is actually preferred in many situations. But how can we fix this?
+# Altering factor order is a little cumbersome, but this is the process
+
+# Reorder time-points
+ps1.rich$treatment_days <- factor(ps1.rich$treatment_days, levels = c("D.14", "D0", "D3", "D7", "D13", "D16", "D18", "D20"))
+levels(ps1.rich$treatment_days)
+
+# Now we can redraw the plot with the updated date ordering
+ggplot(ps1.rich, aes(x = treatment_days, y = Observed, color = treatment, group = treatment)) +
+  stat_smooth(method = "loess") +
+  labs(y = "Richness", color = "Treatment", x = "") +
+  geom_jitter(size = 2, alpha = 0.5, width = 0.2) +
+  scale_color_manual(values = c("black", "chocolate", "green", "purple"))
+
+```
+
+```{r beta-diversity}
+#Ordination Analysis
+ord.pcoa.uni <- ordinate(ps1, method = "PCoA", distance = "unifrac")
+ord.pcoa.wuni <- ordinate(ps1, method = "PCoA", distance = "wunifrac")
+
+```
+
+```{r beta-diversity-plots}
+## Ordination plots all samples
+# Unifrac
+p.pcoa.uni <- plot_ordination(ps1, ord.pcoa.uni, color = "treatment", axes = c(1,2)) +
+  geom_point(size = 2) +
+  labs(title = "PCoA of UniFrac Distances", color = "Treatment") +
+  facet_grid(~treatment_days)
+p.pcoa.uni
+
+# Weighted Unifrac
+p.pcoa.wuni <- plot_ordination(ps1, ord.pcoa.wuni, color = "treatment", axes = c(1,2)) +
+  geom_point(size = 2) +
+  labs(title = "PCoA of wUniFrac Distances", color = "Treatment") +
+  facet_grid(~treatment_days)
+p.pcoa.wuni
+
+ggarrange(p.pcoa.uni, p.pcoa.wuni, nrow = 2, labels = c("A)", "B)"))
+
+```
