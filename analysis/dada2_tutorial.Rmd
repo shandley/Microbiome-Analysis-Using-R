@@ -3,6 +3,8 @@ title: "DADA2 Tutorial"
 author: "Scott A. Handley"
 date: '`r format(Sys.Date(), "%B %d, %Y")`'
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 *Adapted from Ben C. Callahan [benjjneb](https://github.com/benjjneb).
@@ -23,6 +25,12 @@ output: html_document
 
 Load the `dada2` package. If it is not installed see the [dada2 installation instructions](dada-installation.html):
 
+```{r install}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install("dada2")
+```
+
 ```{r load-libraries}
 library(dada2); packageVersion("dada2")
 library(tidyverse); packageVersion("tidyverse")
@@ -33,7 +41,7 @@ library(tidyverse); packageVersion("tidyverse")
 
 ```{r set-path}
 # You will need to make sure the path corresponds to where you cloned the repository
-path <- "~~/Microbiome-Analysis-Using-R/data/fastqs/"
+path <- "~/Microbiome-Analysis-Using-R/data/fastqs/"
 list.files(path)
 
 ```
